@@ -31,7 +31,7 @@ export default function LoginPage() {
     }, 1500);
   };
 
-  const handleSocialLogin = (provider: string) => {
+  const handleSocialLogin = () => {
     setIsLoading(true);
     // Simulate social login
     setTimeout(() => {
@@ -63,7 +63,7 @@ export default function LoginPage() {
               {/* Social Login Buttons */}
               <div className="space-y-3 mb-6">
                 <button
-                  onClick={() => handleSocialLogin('google')}
+                  onClick={() => handleSocialLogin()}
                   disabled={isLoading}
                   className="w-full flex items-center justify-center gap-3 p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
                 >
@@ -77,7 +77,7 @@ export default function LoginPage() {
                 </button>
 
                 <button
-                  onClick={() => handleSocialLogin('facebook')}
+                  onClick={() => handleSocialLogin()}
                   disabled={isLoading}
                   className="w-full flex items-center justify-center gap-3 p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
                 >

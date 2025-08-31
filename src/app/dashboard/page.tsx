@@ -3,6 +3,20 @@
 import { useState, useEffect } from 'react';
 import BaseModal from '@/components/shared/BaseModal';
 
+// Type definitions
+interface RedeemData {
+  type: string;
+  phone: string;
+  amount: string;
+  points: number;
+}
+
+interface ProfileData {
+  name: string;
+  phone: string;
+  email: string;
+}
+
 // Mock user data
 const mockUser = {
   name: 'John Doe',
@@ -62,7 +76,7 @@ export default function DashboardPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleRedeemSubmit = (step: number, data: any) => {
+  const handleRedeemSubmit = (step: number, data: Partial<RedeemData>) => {
     if (step === 3) {
       // Final submission
       setShowRedeem(false);
@@ -75,7 +89,7 @@ export default function DashboardPage() {
     }
   };
 
-  const handleProfileSubmit = (data: any) => {
+  const handleProfileSubmit = (data: ProfileData) => {
     setProfileData(data);
     setShowProfile(false);
     setShowProfileSuccess(true);
@@ -353,16 +367,15 @@ function RedeemPointsModal({
   isOpen, 
   onClose, 
   step, 
-  data, 
   userPoints,
   onSubmit 
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   step: number;
-  data: any;
+  data: RedeemData;
   userPoints: number;
-  onSubmit: (step: number, data: any) => void;
+  onSubmit: (step: number, data: Partial<RedeemData>) => void;
 }) {
   const [formData, setFormData] = useState({ type: '', phone: '', amount: '', points: 0 });
 
@@ -386,7 +399,7 @@ function RedeemPointsModal({
     ]
   };
 
-  const handleSubmit = (stepData: any) => {
+  const handleSubmit = (stepData: Partial<RedeemData>) => {
     onSubmit(step, { ...formData, ...stepData });
   };
 
@@ -394,7 +407,7 @@ function RedeemPointsModal({
     <BaseModal isOpen={isOpen} onClose={onClose} title="Redeem Points" size="lg">
       {step === 1 && (
         <div>
-          <p className="text-gray-600 mb-6">Choose what you'd like to redeem your points for:</p>
+          <p className="text-gray-600 mb-6">Choose what you&apos;d like to redeem your points for:</p>
           <div className="grid grid-cols-2 gap-4">
             {rewardTypes.map((type) => (
               <button
@@ -513,10 +526,10 @@ function RedeemPointsModal({
 function ProfileModal({ isOpen, onClose, data, onSubmit }: { 
   isOpen: boolean; 
   onClose: () => void; 
-  data: any;
-  onSubmit: (data: any) => void;
+  data: ProfileData;
+  onSubmit: (data: ProfileData) => void;
 }) {
-  const [formData, setFormData] = useState(data);
+  const [formData, setFormData] = useState<ProfileData>(data);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
