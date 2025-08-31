@@ -1,0 +1,217 @@
+@import "tailwindcss";
+
+@theme {
+  /* Custom Colors - GreenAfrica Brand */
+  --color-primary-50: #f0f9f1;
+  --color-primary-100: #e7f6e8;
+  --color-primary-200: #c8e6cb;
+  --color-primary-300: #a1d1a6;
+  --color-primary-400: #8bba8e;
+  --color-primary-500: #6da371;
+  --color-primary-600: #4f8754;
+  --color-primary-700: #2e7d33;
+  --color-primary-800: #1b5e20;
+  --color-primary-900: #0d4715;
+  
+  /* Semantic Colors */
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-500: #22c55e;
+  --color-success-700: #15803d;
+  --color-success-800: #166534;
+  
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-500: #f59e0b;
+  --color-warning-700: #a16207;
+  --color-warning-800: #92400e;
+  
+  --color-error-50: #fef2f2;
+  --color-error-100: #fee2e2;
+  --color-error-500: #ef4444;
+  --color-error-700: #b91c1c;
+  --color-error-800: #991b1b;
+  
+  --color-info-50: #eff6ff;
+  --color-info-100: #dbeafe;
+  --color-info-500: #3b82f6;
+  --color-info-700: #1d4ed8;
+  --color-info-800: #1e40af;
+  
+  /* Typography - Using next/font variables */
+  --font-family-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-family-display: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  
+  /* Custom spacing */
+  --spacing-18: 4.5rem;
+  --spacing-22: 5.5rem;
+}
+
+/* Custom Utility Classes */
+@layer utilities {
+  .text-gradient-primary {
+    background: linear-gradient(90deg, var(--color-primary-600), var(--color-primary-800));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  .shadow-green {
+    box-shadow: 0 4px 14px 0 rgb(139 186 142 / 0.1);
+  }
+  
+  .border-gradient-primary {
+    border-image: linear-gradient(90deg, var(--color-primary-400), var(--color-primary-600)) 1;
+  }
+}
+
+/* Component Classes */
+@layer components {
+  .btn-primary {
+    @apply bg-primary-400 hover:bg-primary-500 text-white font-medium px-6 py-3 rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2;
+  }
+  
+  .btn-secondary {
+    @apply bg-white border-2 border-primary-400 text-primary-700 hover:bg-primary-50 font-medium px-6 py-3 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2;
+  }
+  
+  .btn-ghost {
+    @apply text-primary-600 hover:text-primary-700 hover:bg-primary-50 font-medium px-4 py-2 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-400 focus:border-primary-400 outline-none transition-colors duration-200 placeholder:text-gray-500;
+  }
+  
+  .form-label {
+    @apply block text-sm font-medium text-gray-700 mb-2;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6;
+  }
+  
+  .impact-card {
+    @apply bg-gradient-to-br from-primary-50 to-primary-100 rounded-xl p-6 border border-primary-200;
+  }
+  
+  .badge-success {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-success-100 text-success-800;
+  }
+  
+  .badge-warning {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-warning-100 text-warning-800;
+  }
+  
+  .badge-error {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-error-100 text-error-800;
+  }
+  
+  .badge-info {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-info-100 text-info-800;
+  }
+}
+
+/* Custom Utilities for fonts */
+@layer utilities {
+  .font-display {
+    font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  }
+  
+  /* Animation utilities */
+  .animate-in {
+    animation-duration: 200ms;
+    animation-fill-mode: both;
+  }
+  
+  .fade-in-0 {
+    animation-name: fadeIn;
+  }
+  
+  .zoom-in-95 {
+    animation-name: zoomIn;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  
+  @keyframes zoomIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  /* Mobile improvements */
+  @media (max-width: 640px) {
+    .mobile-full-width {
+      width: calc(100vw - 2rem);
+      max-width: none;
+    }
+    
+    .mobile-padding {
+      padding: 1rem;
+    }
+    
+    .mobile-text-sm {
+      font-size: 0.875rem;
+    }
+  }
+}
+
+/* Base Styles */
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+  
+  body {
+    @apply font-sans text-gray-900 bg-gray-50 antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  }
+  
+  h1 {
+    @apply text-4xl font-bold text-primary-800;
+  }
+  
+  h2 {
+    @apply text-3xl font-semibold text-primary-800;
+  }
+  
+  h3 {
+    @apply text-2xl font-semibold text-primary-700;
+  }
+  
+  h4 {
+    @apply text-xl font-medium text-primary-700;
+  }
+  
+  p {
+    @apply leading-relaxed;
+  }
+  
+  a {
+    @apply text-primary-600 hover:text-primary-700 transition-colors duration-200;
+  }
+  
+  /* Focus styles for accessibility */
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary-400;
+  }
+}
