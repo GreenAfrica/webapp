@@ -1,7 +1,52 @@
 
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { extractReferralCode, storeReferralCode, isValidReferralCodeFormat } from '@/lib/utils/referral';
+
 export default function Home() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [referralMessage, setReferralMessage] = useState<string | null>(null);
+
+  // Handle referral code from URL parameters
+  useEffect(() => {
+    if (searchParams) {
+      const referralCode = extractReferralCode(searchParams);
+      if (referralCode && isValidReferralCodeFormat(referralCode)) {
+        // Store referral code for later use during signup
+        storeReferralCode(referralCode);
+        
+        // Show welcome message
+        setReferralMessage(`🎉 You've been referred by a friend! Sign up now to start earning Green Points together!`);
+        
+        // Log for debugging
+        console.log('Referral code detected and stored:', referralCode);
+        
+        // Auto-redirect to login after a short delay
+        setTimeout(() => {
+          router.push('/login');
+        }, 3000);
+      } else if (referralCode) {
+        // Invalid referral code format
+        console.warn('Invalid referral code format:', referralCode);
+      }
+    }
+  }, [searchParams, router]);
+
   return (
     <main className="min-h-screen">
+      {/* Referral Notification */}
+      {referralMessage && (
+        <div className="bg-primary-600 text-white py-3 px-4 text-center">
+          <div className="max-w-4xl mx-auto">
+            <p className="font-medium">{referralMessage}</p>
+            <p className="text-sm text-primary-100 mt-1">Redirecting to sign up...</p>
+          </div>
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-primary-50 to-white py-24 px-4">
         <div className="max-w-6xl mx-auto text-center">

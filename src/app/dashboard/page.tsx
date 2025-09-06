@@ -1,7 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import BaseModal from '@/components/shared/BaseModal';
+import { useAuth } from '@/hooks/useAuth';
+import { useUserTransactions, useRedemptions } from '@/hooks/useFirestore';
+import { useReferrals } from '@/hooks/useReferrals';
+import ReferralCard from '@/components/shared/ReferralCard';
 
 // Type definitions
 interface RedeemData {
@@ -50,11 +55,37 @@ export default function DashboardPage() {
     points: 0
   });
   const [profileData, setProfileData] = useState({
-    name: mockUser.name,
-    phone: mockUser.phone,
-    email: mockUser.email
+    name: '',
+    phone: '',
+    email: ''
   });
   const [copied, setCopied] = useState(false);
+
+  // Firebase hooks - all hooks must be called before any early returns
+  const { user, greenAfricaUser, signOut, updateProfile, loading } = useAuth();
+  const { transactions, loading: transactionsLoading } = useUserTransactions();
+  const { redeemPoints } = useRedemptions();
+  const { totalReferrals, totalReferralPoints } = useReferrals(user?.uid);
+  const router = useRouter();
+
+  // All useEffect hooks must be called before any early returns
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!user && !loading) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  // Initialize profile data when greenAfricaUser loads
+  useEffect(() => {
+    if (greenAfricaUser) {
+      setProfileData({
+        name: greenAfricaUser.displayName,
+        phone: greenAfricaUser.phoneNumber || '',
+        email: greenAfricaUser.email
+      });
+    }
+  }, [greenAfricaUser]);
 
   // Check if user is new (show welcome slides)
   useEffect(() => {
@@ -64,13 +95,37 @@ export default function DashboardPage() {
     }
   }, []);
 
+  // Show loading while checking auth state - moved after all hooks
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render dashboard if user is not authenticated - moved after all hooks
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Redirecting to login...</p>
+        </div>
+      </div>
+    );
+  }
+
   const handleWelcomeComplete = () => {
     localStorage.setItem('welcomeShown', 'true');
     setShowWelcome(false);
   };
 
   const handleCopyReferral = () => {
-    const referralLink = `https://greenafrica.com/join?ref=${mockUser.referralCode}`;
+    const referralLink = `https://greenafrica.earth/login?ref=${mockUser.referralCode}`;
     navigator.clipboard.writeText(referralLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -110,15 +165,19 @@ export default function DashboardPage() {
               <h1 className="font-display font-bold text-xl text-primary-800">
                 GreenAfrica
               </h1>
-              <p className="text-sm text-gray-600">Welcome back, {mockUser.name}</p>
+              <p className="text-sm text-gray-600">Welcome back, {greenAfricaUser?.displayName || 'User'}</p>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-medium text-gray-900">Green ID</p>
-                <p className="text-sm text-primary-600 font-mono">{mockUser.greenId}</p>
+                <p className="text-sm text-primary-600 font-mono">{greenAfricaUser?.greenId || 'Loading...'}</p>
               </div>
               <button
-                onClick={handleLogout}
+                onClick={async () => {
+                  localStorage.removeItem('welcomeShown');
+                  await signOut();
+                  router.push('/login');
+                }}
                 className="text-gray-500 hover:text-gray-700 transition-colors duration-200"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -142,7 +201,7 @@ export default function DashboardPage() {
               <p className="text-gray-600">Keep recycling to earn more!</p>
             </div>
             <div className="text-right">
-              <p className="text-4xl font-bold text-primary-700">{mockUser.totalPoints}</p>
+              <p className="text-4xl font-bold text-primary-700">{greenAfricaUser?.totalPoints || 0}</p>
               <p className="text-sm text-gray-600">Total Points</p>
             </div>
           </div>
@@ -165,34 +224,13 @@ export default function DashboardPage() {
         </div>
 
         {/* Referral Section */}
-        <div className="card">
-          <h3 className="font-display font-semibold text-xl text-gray-900 mb-4">
-            Invite Friends & Earn
-          </h3>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-600 mb-2">Your Referral Code</p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={mockUser.referralCode}
-                  readOnly
-                  className="input-field flex-1 bg-gray-50 font-mono"
-                />
-                <button
-                  onClick={handleCopyReferral}
-                  className="btn-ghost px-4"
-                >
-                  {copied ? 'Copied!' : 'Copy'}
-                </button>
-              </div>
-            </div>
-            <div className="text-center sm:text-right">
-              <p className="text-2xl font-bold text-success-600">{mockUser.referralPoints}</p>
-              <p className="text-sm text-gray-600">Points from referrals</p>
-            </div>
-          </div>
-        </div>
+        {greenAfricaUser && (
+          <ReferralCard
+            referralCode={greenAfricaUser.referralCode}
+            totalReferrals={totalReferrals}
+            referralPoints={totalReferralPoints}
+          />
+        )}
 
         {/* Activity History */}
         <div className="card">

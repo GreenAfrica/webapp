@@ -1,42 +1,133 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { extractReferralCode, storeReferralCode, isValidReferralCodeFormat } from '@/lib/utils/referral';
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [step, setStep] = useState<'phone' | 'verify'>('phone');
+  const [error, setError] = useState<string | null>(null);
+  const [referralMessage, setReferralMessage] = useState<string | null>(null);
+
+  const { signInWithGoogle, signInWithFacebook, signInWithPhone, verifyPhoneCode, user, loading } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Handle referral code from URL parameters
+  useEffect(() => {
+    if (searchParams) {
+      const referralCode = extractReferralCode(searchParams);
+      if (referralCode && isValidReferralCodeFormat(referralCode)) {
+        // Store referral code for later use during signup
+        storeReferralCode(referralCode);
+        
+        // Show welcome message
+        setReferralMessage(`🎉 You've been referred by a friend! Sign up to start earning Green Points together!`);
+        
+        // Log for debugging
+        console.log('Referral code detected and stored:', referralCode);
+      } else if (referralCode) {
+        // Invalid referral code format
+        console.warn('Invalid referral code format:', referralCode);
+      }
+    }
+  }, [searchParams]);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user && !loading) {
+      router.push('/dashboard');
+    }
+  }, [user, loading, router]);
+
+  // Show loading while checking auth state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render login form if user is authenticated
+  if (user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Redirecting to dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleGoogleLogin = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      await signInWithGoogle();
+      router.push('/dashboard');
+    } catch (error) {
+      console.error('Google login error:', error);
+      setError(error instanceof Error ? error.message : 'Google login failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFacebookLogin = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      await signInWithFacebook();
+      router.push('/dashboard');
+    } catch (error) {
+      console.error('Facebook login error:', error);
+      setError(error instanceof Error ? error.message : 'Facebook login failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    if (!phoneNumber) return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      await signInWithPhone(phoneNumber);
       setStep('verify');
-    }, 1500);
+    } catch (error) {
+      console.error('Phone verification error:', error);
+      setError(error instanceof Error ? error.message : 'Failed to send verification code');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleVerificationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      // Redirect to dashboard
-      window.location.href = '/dashboard';
-    }, 1500);
-  };
+    if (!verificationCode || verificationCode.length !== 6) return;
 
-  const handleSocialLogin = () => {
-    setIsLoading(true);
-    // Simulate social login
-    setTimeout(() => {
-      window.location.href = '/dashboard';
-    }, 1000);
+    try {
+      setIsLoading(true);
+      setError(null);
+      await verifyPhoneCode(verificationCode);
+      router.push('/dashboard');
+    } catch (error) {
+      console.error('Phone verification error:', error);
+      setError(error instanceof Error ? error.message : 'Invalid verification code');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -60,10 +151,24 @@ export default function LoginPage() {
                 Sign In
               </h2>
 
+              {/* Referral Message Display */}
+              {referralMessage && (
+                <div className="mb-4 p-3 bg-primary-50 border border-primary-200 rounded-lg">
+                  <p className="text-primary-700 text-sm">{referralMessage}</p>
+                </div>
+              )}
+
+              {/* Error Display */}
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-600 text-sm">{error}</p>
+                </div>
+              )}
+
               {/* Social Login Buttons */}
               <div className="space-y-3 mb-6">
                 <button
-                  onClick={() => handleSocialLogin()}
+                  onClick={handleGoogleLogin}
                   disabled={isLoading}
                   className="w-full flex items-center justify-center gap-3 p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
                 >
@@ -77,7 +182,7 @@ export default function LoginPage() {
                 </button>
 
                 <button
-                  onClick={() => handleSocialLogin()}
+                  onClick={handleFacebookLogin}
                   disabled={isLoading}
                   className="w-full flex items-center justify-center gap-3 p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
                 >
