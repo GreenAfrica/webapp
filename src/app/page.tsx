@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { extractReferralCode, storeReferralCode, isValidReferralCodeFormat } from '@/lib/utils/referral';
 import Image from 'next/image';
+import Link from 'next/link';
 
 // Image imports based on Figma extraction
 const imgPersonHoldingRecyclingBinFullPlasticBottles1 = "/033bc39ae008769ea0344bb76b69a8b474dd3383.png";
@@ -75,10 +76,14 @@ export default function Home() {
         <div className="h-full relative w-full flex items-center px-4 md:px-[64px]">
           <div className="flex items-center gap-3">
             <div className="w-[35px] md:w-[52px] h-[35px] md:h-[52px] relative">
-              <Image alt="GreenAfrica Logo" className="block w-full h-full object-contain" src={imgGroup} width={52} height={52} />
+              <Link href="/">
+                <Image alt="GreenAfrica Logo" className="block w-full h-full object-contain" src={imgGroup} width={52} height={52} />
+              </Link>
             </div>
             <div className="w-[100px] md:w-[129px] h-[14px] md:h-[18px] relative">
-              <Image alt="GreenAfrica" className="block w-full h-full object-contain" src={imgGroup1} width={129} height={18} />
+              <Link href="/">
+                <Image alt="GreenAfrica" className="block w-full h-full object-contain" src={imgGroup1} width={129} height={18} />
+              </Link>
             </div>
           </div>
         </div>
