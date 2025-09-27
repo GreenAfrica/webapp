@@ -39,8 +39,8 @@
   --color-info-800: #1e40af;
   
   /* Typography - Using next/font variables */
-  --font-family-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-family-display: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  --font-family-sans: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-family-display: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
   
   /* Custom spacing */
   --spacing-18: 4.5rem;
@@ -115,7 +115,7 @@
 /* Custom Utilities for fonts */
 @layer utilities {
   .font-display {
-    font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
   }
   
   /* Animation utilities */
@@ -180,7 +180,7 @@
   }
   
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
   }
   
   h1 {

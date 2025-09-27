@@ -1,9 +1,32 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { extractReferralCode, storeReferralCode, isValidReferralCodeFormat } from '@/lib/utils/referral';
+import Image from 'next/image';
+
+// Image imports based on Figma extraction
+const imgPersonHoldingRecyclingBinFullPlasticBottles1 = "/033bc39ae008769ea0344bb76b69a8b474dd3383.png";
+const imgCloseUpPersonHandHoldingGlassBottle1 = "/rvm-box.png";
+const imgScreenshot20250901At1617421 = "/722de87e30bf7b63ec913e46f333e1f6443613b9.png";
+const imgGroup = "/7e3f647a112eb76039ddd32806f5db04c6717f3c.svg";
+const imgGroup1 = "/1d729100fabe9daa7ab6847ee7c1e76487aa5864.svg";
+const imgRecycle = "/d0291353124f60d1f353c15dac39e8f363977222.svg";
+const imgDeviceMobile = "/2f1ab8ebe22ac9af46990166b27d574b8d4d17bb.svg";
+const imgRecycle1 = "/d81dc3776f492fc2c2d92c415f047201df643510.svg";
+const imgBeerBottle = "/970a1b0eb73528d093feda687b5f057422b0dac6.svg";
+const imgSealCheck = "/140da9d13c33d09313e144de560f47424d1e10fb.svg";
+const imgGift = "/fe5fd71d5bffde300b948e97b04ba095af8da7f2.svg";
+const imgFlowerLotus = "/12fdf0e2f4e0d616659c4e57aac335fab4bd3e0d.svg";
+const imgBeerBottle1 = "/91c89364533bf95c3f5e2c9363f4e24766d521f7.svg";
+const imgRecycle2 = "/ca4db25f15667316576a46b13cf4164080b1e7db.svg";
+const imgWind = "/105707e39679039c99f4f576403ea55e474bd675.svg";
+const imgDatabase = "/1d7f874398c93ef553276025636ef71a8010f8f9.svg";
+const imgDeviceTabletSpeaker = "/632d9b84963d25e6016a00fedac7ff76a3983975.svg";
+const imgMapPinArea = "/46e3c67c2e31719f61d645342ec378562d9b8f3c.svg";
+const imgShippingContainer = "/fc04426d8c3dbe40684d49abd0bc332ceddb05e2.svg";
+const imgGroup2 = "/985d925fd2f3760e185da35d687afbd9602fb471.svg";
+const imgGroup3 = "/a1aa7779199dd56e5453d6b77e402225e4b6db6d.svg";
 
 export default function Home() {
   const router = useRouter();
@@ -36,10 +59,10 @@ export default function Home() {
   }, [searchParams, router]);
 
   return (
-    <main className="min-h-screen">
+    <div className="bg-white flex flex-col items-start relative min-h-screen w-full">
       {/* Referral Notification */}
       {referralMessage && (
-        <div className="bg-primary-600 text-white py-3 px-4 text-center">
+        <div className="bg-primary-600 text-white py-3 px-4 text-center w-full">
           <div className="max-w-4xl mx-auto">
             <p className="font-medium">{referralMessage}</p>
             <p className="text-sm text-primary-100 mt-1">Redirecting to sign up...</p>
@@ -47,166 +70,238 @@ export default function Home() {
         </div>
       )}
 
+      {/* Header */}
+      <div className="h-[70px] md:h-[90px] relative w-full border-b border-[#e2e1e1]">
+        <div className="h-full relative w-full flex items-center px-4 md:px-[64px]">
+          <div className="flex items-center gap-3">
+            <div className="w-[35px] md:w-[52px] h-[35px] md:h-[52px] relative">
+              <Image alt="GreenAfrica Logo" className="block w-full h-full object-contain" src={imgGroup} width={52} height={52} />
+            </div>
+            <div className="w-[100px] md:w-[129px] h-[14px] md:h-[18px] relative">
+              <Image alt="GreenAfrica" className="block w-full h-full object-contain" src={imgGroup1} width={129} height={18} />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary-50 to-white py-24 px-4">
-        <div className="max-w-6xl mx-auto text-center">
-          <h1 className="font-display font-bold text-4xl md:text-5xl text-primary-800 mb-6">
-            Turn Recycling Into 
-            <span className="text-gradient-primary"> Instant Rewards</span>
-          </h1>
-          <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-            Drop plastic bottles, earn Green Points, redeem airtime and data while making a positive environmental impact. Join the recycling revolution today.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="btn-primary text-lg px-8 py-4">
-              Get Started Today
-            </button>
-            <button className="btn-secondary text-lg px-8 py-4">
-              Find Locations
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-16 px-4 bg-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-primary-700 mb-2">10,000+</div>
-              <div className="text-gray-600">Bottles Recycled</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-primary-700 mb-2">500kg</div>
-              <div className="text-gray-600">CO₂ Saved</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-primary-700 mb-2">50+</div>
-              <div className="text-gray-600">Active Locations</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works Section */}
-      <section className="py-16 px-4 bg-gray-50">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-center mb-12">How It Works</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="card text-center">
-              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">📱</span>
-              </div>
-              <h3 className="mb-4">Download & Register</h3>
-              <p className="text-gray-600">
-                Get the GreenAfrica app, verify your phone and create your unique Green ID to start recycling.
-              </p>
-            </div>
-            
-            <div className="card text-center">
-              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">♻️</span>
-              </div>
-              <h3 className="mb-4">Drop & Earn</h3>
-              <p className="text-gray-600">
-                Find a reverse vending machine, scan your Green ID, and drop your PEP bottles to earn points instantly.
-              </p>
-            </div>
-            
-            <div className="card text-center">
-              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">🎁</span>
-              </div>
-              <h3 className="mb-4">Redeem Rewards</h3>
-              <p className="text-gray-600">
-                Convert your Green Points to airtime, data, or other rewards with just a few taps in the app.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Sample Impact Dashboard */}
-      <section className="py-16 px-4 bg-white">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-center mb-12">Your Impact Dashboard</h2>
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="impact-card">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-display font-semibold text-xl text-primary-800">
-                  This Month
-                </h3>
-                <div className="badge-success">Active</div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-3xl font-bold text-primary-700">247</p>
-                  <p className="text-sm text-gray-600">Bottles Recycled</p>
-                </div>
-                <div>
-                  <p className="text-3xl font-bold text-primary-700">12.3kg</p>
-                  <p className="text-sm text-gray-600">CO₂ Saved</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="card">
-              <h3 className="font-display font-semibold text-xl text-gray-800 mb-4">
-                Available Rewards
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">₦200 Airtime</p>
-                    <p className="text-sm text-gray-600">100 Green Points</p>
-                  </div>
-                  <button className="btn-ghost">Redeem</button>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">1GB Data</p>
-                    <p className="text-sm text-gray-600">150 Green Points</p>
-                  </div>
-                  <button className="btn-ghost">Redeem</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-16 px-4 bg-primary-700 text-white">
+      <div className="relative w-full py-8 md:py-16 lg:py-24 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-white mb-6">Ready to Start Making an Impact?</h2>
-          <p className="text-lg text-primary-100 mb-8 max-w-2xl mx-auto">
-            Join thousands of users who are already earning rewards while helping the environment. Download the app and find your nearest location today.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="bg-white text-primary-700 hover:bg-gray-100 font-medium px-8 py-4 rounded-lg transition-colors duration-200">
-              Download App
-            </button>
-            <button className="border-2 border-white text-white hover:bg-white hover:text-primary-700 font-medium px-8 py-4 rounded-lg transition-colors duration-200">
-              Find Locations
-            </button>
+          <div className="flex flex-col gap-4 md:gap-6 items-center mb-8 md:mb-12">
+            <h1 className="font-bold text-[#1e1e1e] text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-tight md:leading-none">
+              <span>Turn PEP into </span>
+              <span className="text-[#2e7d33]">airtime/data</span>
+              <span> for verified recycling</span>
+            </h1>
+            <p className="font-normal text-[#474747] text-base sm:text-lg md:text-xl max-w-3xl leading-relaxed">
+              Drop PEP bottles at our smart bin. We log deposits onchain and you redeem instant airtime/data as a reward for been ecofriendly. Hosts can request our smart bin in high traffic location.
+            </p>
+          </div>
+          <button 
+            onClick={() => router.push('/login')}
+            className="bg-[#2e7d33] flex gap-2 items-center justify-center px-6 py-4 md:px-8 md:py-4 rounded-lg hover:bg-[#1b5e20] transition-colors duration-200 mx-auto text-base md:text-lg font-semibold text-white min-h-[44px]"
+          >
+            <Image alt="" className="w-5 h-5 md:w-6 md:h-6" src={imgRecycle} width={24} height={24} />
+            <span>Start recycling</span>
+          </button>
+        </div>
+        <div className="bg-[#e8f3e9] mt-12 md:mt-16 lg:mt-20 rounded-2xl overflow-hidden mx-auto max-w-6xl aspect-[16/10] md:aspect-[2/1]">
+          <Image 
+            alt="Person holding recycling bin full of plastic bottles" 
+            className="w-full h-full object-cover" 
+            src={imgPersonHoldingRecyclingBinFullPlasticBottles1} 
+            width={1100} 
+            height={770} 
+          />
+        </div>
+      </div>
+
+      {/* How it works Section */}
+      <div className="w-full py-12 md:py-20 px-4">
+        <h2 className="font-bold text-[#1e1e1e] text-2xl md:text-3xl lg:text-4xl text-center mb-8 md:mb-16">
+          How it works
+        </h2>
+        <div className="max-w-7xl mx-auto">
+          <div className="lg:hidden mb-8">
+            <div className="bg-[#e8f3e9] rounded-2xl overflow-hidden aspect-[4/3] max-w-md mx-auto">
+              <Image 
+                alt="Close up person hand holding glass bottle" 
+                className="w-full h-full object-cover" 
+                src={imgCloseUpPersonHandHoldingGlassBottle1} 
+                width={599} 
+                height={695} 
+              />
+            </div>
+          </div>
+          <div className="lg:flex lg:gap-8 xl:gap-12 lg:items-start">
+            <div className="hidden lg:block bg-[#e8f3e9] rounded-2xl overflow-hidden lg:w-1/2 xl:w-2/5 aspect-[4/5]">
+              <Image 
+                alt="Close up person hand holding glass bottle" 
+                className="w-full h-full object-cover" 
+                src={imgCloseUpPersonHandHoldingGlassBottle1} 
+                width={599} 
+                height={695} 
+              />
+            </div>
+            <div className="lg:w-1/2 xl:w-3/5 flex flex-col gap-3 md:gap-4">
+            {[
+              {
+                icon: imgDeviceMobile,
+                title: "Onboard",
+                description: "Download, verify phone/email, choose a username and the app creates your Green ID."
+              },
+              {
+                icon: imgRecycle1,
+                title: "Recycle",
+                description: "At a participating location, enter or scan your Green ID on the machine's tablet to start a session."
+              },
+              {
+                icon: imgBeerBottle,
+                title: "Drop bottles",
+                description: "The camera records 30‑second segments while you recycle; the app can notify you live."
+              },
+              {
+                icon: imgSealCheck,
+                title: "Verification",
+                description: "AI confirms bottles are PEP and counts them."
+              },
+              {
+                icon: imgGift,
+                title: "Rewards",
+                description: "Green Points land in your wallet. Convert to airtime or data in a tap."
+              },
+              {
+                icon: imgFlowerLotus,
+                title: "Grow your impact",
+                description: "Track bottles, CO₂ saved, badges, and referrals that earn bonus points."
+              }
+            ].map((step, index) => (
+              <div key={index} className="bg-white rounded-xl w-full border border-[#e7f6e8] shadow-sm">
+                <div className="flex gap-4 md:gap-6 items-start p-4 md:p-6">
+                  <div className="bg-[#ecfced] rounded-full w-12 h-12 md:w-14 md:h-14 flex items-center justify-center flex-shrink-0">
+                    <Image alt="" className="w-5 h-5 md:w-6 md:h-6" src={step.icon} width={24} height={24} />
+                  </div>
+                  <div className="flex flex-col gap-2 md:gap-3 flex-1 min-w-0">
+                    <h3 className="font-bold text-[#1e1e1e] text-lg md:text-xl">
+                      {step.title}
+                    </h3>
+                    <p className="font-normal text-[#666c66] text-sm md:text-base leading-relaxed">
+                      {step.description}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+            </div>
           </div>
         </div>
-      </section>
+      </div>
+
+      {/* Impacts so far Section */}
+      <div className="w-full py-12 md:py-20 px-4 bg-gray-50">
+        <h2 className="font-bold text-[#1e1e1e] text-2xl md:text-3xl lg:text-4xl text-center mb-8 md:mb-16">
+          Impacts so far
+        </h2>
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 lg:mb-8">
+            {[
+              { icon: imgBeerBottle1, label: "Bottles collected", value: "6,000" },
+              { icon: imgRecycle2, label: "PEP diverted (kg)", value: "2" },
+              { icon: imgWind, label: "CO2 saved (t)", value: "3,000" }
+            ].map((stat, index) => (
+              <div key={index} className="bg-white flex gap-4 md:gap-6 items-center p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+                <div className="bg-[#ecfced] rounded-full w-12 h-12 md:w-14 md:h-14 flex items-center justify-center flex-shrink-0">
+                  <Image alt="" className="w-5 h-5 md:w-6 md:h-6" src={stat.icon} width={24} height={24} />
+                </div>
+                <div className="flex flex-col gap-2 min-w-0">
+                  <p className="font-medium text-[#696565] text-sm md:text-base">
+                    {stat.label}
+                  </p>
+                  <p className="font-bold text-[#1e1e1e] text-xl md:text-2xl leading-none">
+                    {stat.value}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {[
+              { icon: imgDatabase, label: "Airtime/data paid", value: "7" },
+              { icon: imgDeviceTabletSpeaker, label: "Devices deployed", value: "2" },
+              { icon: imgMapPinArea, label: "Active locations", value: "3,000" }
+            ].map((stat, index) => (
+              <div key={index} className="bg-white flex gap-4 md:gap-6 items-center p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+                <div className="bg-[#ecfced] rounded-full w-12 h-12 md:w-14 md:h-14 flex items-center justify-center flex-shrink-0">
+                  <Image alt="" className="w-5 h-5 md:w-6 md:h-6" src={stat.icon} width={24} height={24} />
+                </div>
+                <div className="flex flex-col gap-2 min-w-0">
+                  <p className="font-medium text-[#696565] text-sm md:text-base">
+                    {stat.label}
+                  </p>
+                  <p className="font-bold text-[#1e1e1e] text-xl md:text-2xl leading-none">
+                    {stat.value}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Active locations Section */}
+      <div className="w-full py-12 md:py-20 px-4">
+        <div className="max-w-4xl mx-auto text-center mb-8 md:mb-12">
+          <h2 className="font-bold text-[#1e1e1e] text-2xl md:text-3xl lg:text-4xl mb-4 md:mb-6 leading-tight">
+            Active locations of our Vending Machine
+          </h2>
+          <a href="#" className="inline-block font-semibold text-[#2e7d33] text-base md:text-lg underline hover:text-[#1b5e20] transition-colors duration-200 min-h-[44px] py-2">
+            Request a device
+          </a>
+        </div>
+        <div className="bg-[#e8f3e9] rounded-2xl max-w-6xl mx-auto relative overflow-hidden aspect-[16/9] md:aspect-[2/1]">
+          <Image 
+            alt="Map showing active locations" 
+            className="w-full h-full object-cover" 
+            src={imgScreenshot20250901At1617421} 
+            width={1210} 
+            height={504} 
+          />
+          {/* Device markers */}
+          {[
+            { left: '205px', top: '263px' },
+            { left: '885px', top: '48px' },
+            { left: '817px', top: '305px' },
+            { left: '681px', top: '423px' }
+          ].map((position, index) => (
+            <div 
+              key={index} 
+              className="absolute transform -translate-x-1/2 -translate-y-1/2"
+              style={{ left: position.left, top: position.top }}
+            >
+              <div className="transform rotate-[92.651deg]">
+                <Image alt="Device location" className="w-[40px] h-[40px]" src={imgShippingContainer} width={40} height={40} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Footer */}
-      <footer className="py-12 px-4 bg-gray-900 text-white">
-        <div className="max-w-6xl mx-auto text-center">
-          <h3 className="text-white mb-4">GreenAfrica</h3>
-          <p className="text-gray-400 mb-6">
-            Making recycling rewarding, one bottle at a time.
-          </p>
-          <div className="flex justify-center space-x-6">
-            <a href="#" className="text-gray-400 hover:text-white">Privacy Policy</a>
-            <a href="#" className="text-gray-400 hover:text-white">Terms of Service</a>
-            <a href="#" className="text-gray-400 hover:text-white">Contact Us</a>
+      <div className="bg-[#113013] w-full py-6 md:py-8 px-4">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-[35px] md:w-[45px] h-[35px] md:h-[45px] relative">
+              <Image alt="GreenAfrica Logo" className="block w-full h-full object-contain" src={imgGroup2} width={45} height={45} />
+            </div>
+            <div className="w-[100px] md:w-[120px] h-[14px] md:h-[16px] relative">
+              <Image alt="GreenAfrica" className="block w-full h-full object-contain" src={imgGroup3} width={120} height={16} />
+            </div>
           </div>
+          <p className="font-medium text-[#e8f3e9] text-sm text-center sm:text-right">
+            © 2025 GreenAfrica. All rights reserved.
+          </p>
         </div>
-      </footer>
-    </main>
+      </div>
+    </div>
   );
 }
