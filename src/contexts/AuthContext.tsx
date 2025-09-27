@@ -21,6 +21,7 @@ import {
   processReferral,
   type GreenAfricaUser,
 } from '@/lib/firebase/firestore';
+import { registerUserOnHedera } from '@/actions/blockchain';
 import { AuthContextType, PhoneVerificationState } from '@/types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -87,6 +88,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
 
+      // Register user on Hedera blockchain
+      try {
+        console.log(`Registering new user ${userData.greenId} on blockchain`);
+        const blockchainResult = await registerUserOnHedera(
+          userData.greenId,
+          userData.referralCode,
+          referralCode
+        );
+        
+        if (blockchainResult.success) {
+          console.log(`Blockchain registration successful for ${userData.greenId}:`, blockchainResult.message);
+          if (blockchainResult.transactionId) {
+            console.log(`Transaction ID: ${blockchainResult.transactionId}`);
+          }
+        } else {
+          console.warn(`Blockchain registration failed for ${userData.greenId}:`, blockchainResult.error);
+          // User registration continues despite blockchain failure
+        }
+      } catch (blockchainError) {
+        console.error('Blockchain registration error:', blockchainError);
+        // User registration continues despite blockchain failure
+      }
+
       setGreenAfricaUser(userData);
     } catch (error) {
       console.error('Error handling user data:', error);
@@ -103,8 +127,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           totalPoints: 0,
           referralCode: 'TEMP' + Date.now(),
           referralPoints: 0,
-          createdAt: new Date() as any,
-          updatedAt: new Date() as any,
+          createdAt: new Date() as unknown as any,
+          updatedAt: new Date() as unknown as any,
         };
         setGreenAfricaUser(fallbackUser);
       }
