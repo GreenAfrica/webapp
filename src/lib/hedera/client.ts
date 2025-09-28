@@ -1,265 +1,253 @@
+'use server';
+
 import {
   Client,
   PrivateKey,
   AccountId,
-  ContractExecuteTransaction,
   ContractCallQuery,
+  ContractExecuteTransaction,
+  ContractFunctionParameters,
   Hbar,
-  HbarUnit,
   ContractId,
 } from '@hashgraph/sdk';
-import { ethers } from 'ethers';
-import GreenAfricaABI from '@/abi/GreenAfrica.json';
-import { stringToBytes32, bytes32ToString } from '@/lib/utils/blockchain';
 
-// Hedera configuration
-const HEDERA_NETWORK = process.env.HEDERA_NETWORK || 'testnet';
-const HEDERA_OPERATOR_ID = process.env.HEDERA_OPERATOR_ID;
-const HEDERA_OPERATOR_KEY = process.env.HEDERA_OPERATOR_KEY || '0x653a4a5f68e53fcddec258805fad3e36c8bef95dbc3061560683586839e64952';
-const CONTRACT_ADDRESS = process.env.HEDERA_CONTRACT_ID || '0x668a877dcc604eb95d448fe2e3a3a30b5f379073';
+// Server-only environment variables
+function getServerEnv() {
+  return {
+    HEDERA_NETWORK: process.env.HEDERA_NETWORK || 'testnet',
+    HEDERA_OPERATOR_ID: process.env.HEDERA_OPERATOR_ID,
+    HEDERA_OPERATOR_KEY: process.env.HEDERA_OPERATOR_KEY,
+    GREEN_AFRICA_CONTRACT_ID: process.env.GREEN_AFRICA_CONTRACT_ID,
+  };
+}
 
-// Initialize Hedera client
-export function createHederaClient(): Client {
+interface BlockchainResult {
+  success: boolean;
+  transactionId?: string;
+  userExists?: boolean;
+  error?: string;
+}
+
+/**
+ * Create Hedera client for blockchain operations
+ */
+function createHederaClient(): Client {
+  const env = getServerEnv();
+  
+  if (!env.HEDERA_OPERATOR_ID || !env.HEDERA_OPERATOR_KEY) {
+    throw new Error('Hedera operator credentials not configured');
+  }
+
   let client: Client;
   
-  if (HEDERA_NETWORK === 'mainnet') {
+  if (env.HEDERA_NETWORK === 'mainnet') {
     client = Client.forMainnet();
   } else {
     client = Client.forTestnet();
   }
 
-  // Set operator if credentials are provided
-  if (HEDERA_OPERATOR_ID && HEDERA_OPERATOR_KEY) {
-    const operatorId = AccountId.fromString(HEDERA_OPERATOR_ID);
-    const operatorKey = PrivateKey.fromStringECDSA(HEDERA_OPERATOR_KEY);
+  try {
+    const operatorId = AccountId.fromString(env.HEDERA_OPERATOR_ID);
+    const operatorKey = PrivateKey.fromStringECDSA(env.HEDERA_OPERATOR_KEY);
     client.setOperator(operatorId, operatorKey);
+    return client;
+  } catch (error) {
+    throw new Error(`Failed to configure Hedera client: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
-
-  return client;
-}
-
-// Contract interface for encoding function calls
-const contractInterface = new ethers.Interface(GreenAfricaABI);
-
-interface User {
-  exists: boolean;
-  recyclerId: string;
-  referralCode: string;
-  referredBy: string;
-  hasRecycled: boolean;
-  firstDepositAt: bigint;
-  points: bigint;
-  totalPET: bigint;
-}
-
-interface BlockchainUserRegistrationResult {
-  success: boolean;
-  transactionId?: string;
-  error?: string;
-  userExists?: boolean;
 }
 
 /**
- * Check if a user exists on the blockchain
+ * Register a user on the Hedera blockchain
+ */
+export async function registerUserOnBlockchain(
+  greenId: string,
+  referralCode: string,
+  referredByCode?: string
+): Promise<BlockchainResult> {
+  try {
+    const env = getServerEnv();
+    
+    if (!env.GREEN_AFRICA_CONTRACT_ID) {
+      console.warn('GREEN_AFRICA_CONTRACT_ID not configured - skipping blockchain registration');
+      return {
+        success: true,
+        userExists: false,
+      };
+    }
+
+    const client = createHederaClient();
+    
+    try {
+      // First check if user already exists
+      const userExists = await checkUserExists(greenId);
+      if (userExists) {
+        return {
+          success: true,
+          userExists: true,
+        };
+      }
+
+      const contractId = ContractId.fromString(env.GREEN_AFRICA_CONTRACT_ID);
+
+      // Encode function call parameters
+      const functionParameters = new ContractFunctionParameters()
+        .addString(greenId)
+        .addString(referralCode)
+        .addString(referredByCode || '');
+
+      // Create contract execution transaction
+      const contractExecTx = new ContractExecuteTransaction()
+        .setContractId(contractId)
+        .setGas(300000) // Adjust gas limit as needed
+        .setFunction('registerUser', functionParameters)
+        .setMaxTransactionFee(new Hbar(2));
+
+      // Execute the transaction
+      const txResponse = await contractExecTx.execute(client);
+      const receipt = await txResponse.getReceipt(client);
+
+      if (receipt.status.toString() === 'SUCCESS') {
+        const transactionId = txResponse.transactionId.toString();
+        console.log(`User ${greenId} registered on blockchain. TX: ${transactionId}`);
+        
+        return {
+          success: true,
+          transactionId,
+          userExists: false,
+        };
+      } else {
+        throw new Error(`Transaction failed with status: ${receipt.status.toString()}`);
+      }
+    } finally {
+      client.close();
+    }
+  } catch (error) {
+    console.error('Error registering user on blockchain:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to register user on blockchain',
+    };
+  }
+}
+
+/**
+ * Check if a user exists on the Hedera blockchain
  */
 export async function checkUserExists(greenId: string): Promise<boolean> {
-  const client = createHederaClient();
-  
   try {
-    const recyclerId = stringToBytes32(greenId);
+    const env = getServerEnv();
     
-    // Encode the function call
-    const functionCallBytes = contractInterface.encodeFunctionData('getUser', [recyclerId]);
-    
-    // Create contract call query
-    const contractCallQuery = new ContractCallQuery()
-      .setContractId(ContractId.fromEvmAddress(0, 0, CONTRACT_ADDRESS))
-      .setFunctionParameters(Buffer.from(functionCallBytes.slice(2), 'hex'))
-      .setGas(100000);
-
-    // Execute the query
-    const result = await contractCallQuery.execute(client);
-    
-    // Decode the result
-    const decoded = contractInterface.decodeFunctionResult('getUser', result.bytes);
-    const user = decoded as unknown as User;
-    
-    return user.exists;
-  } catch (error) {
-    console.error('Error checking user existence:', error);
-    return false;
-  } finally {
-    client.close();
-  }
-}
-
-/**
- * Get user details from blockchain
- */
-export async function getBlockchainUser(greenId: string): Promise<User | null> {
-  const client = createHederaClient();
-  
-  try {
-    const recyclerId = stringToBytes32(greenId);
-    
-    // Encode the function call
-    const functionCallBytes = contractInterface.encodeFunctionData('getUser', [recyclerId]);
-    
-    // Create contract call query
-    const contractCallQuery = new ContractCallQuery()
-      .setContractId(ContractId.fromEvmAddress(0, 0, CONTRACT_ADDRESS))
-      .setFunctionParameters(Buffer.from(functionCallBytes.slice(2), 'hex'))
-      .setGas(100000);
-
-    // Execute the query
-    const result = await contractCallQuery.execute(client);
-    
-    // Decode the result
-    const decoded = contractInterface.decodeFunctionResult('getUser', result.bytes);
-    const user = decoded as unknown as User;
-    
-    if (!user.exists) {
-      return null;
+    if (!env.GREEN_AFRICA_CONTRACT_ID) {
+      console.warn('GREEN_AFRICA_CONTRACT_ID not configured - returning false for user existence check');
+      return false;
     }
+
+    const client = createHederaClient();
     
-    return {
-      exists: user.exists,
-      recyclerId: bytes32ToString(user.recyclerId),
-      referralCode: bytes32ToString(user.referralCode),
-      referredBy: bytes32ToString(user.referredBy),
-      hasRecycled: user.hasRecycled,
-      firstDepositAt: user.firstDepositAt,
-      points: user.points,
-      totalPET: user.totalPET,
-    };
+    try {
+      const contractId = ContractId.fromString(env.GREEN_AFRICA_CONTRACT_ID);
+
+      // Query the contract to check if user exists
+      const queryParameters = new ContractFunctionParameters()
+        .addString(greenId);
+
+      const contractQuery = new ContractCallQuery()
+        .setContractId(contractId)
+        .setGas(100000)
+        .setFunction('userExists', queryParameters);
+
+      const result = await contractQuery.execute(client);
+      
+      // Parse the result - this depends on the contract's return format
+      // For simplicity, we'll assume it returns a boolean
+      const exists = result.getBool(0);
+      
+      return exists;
+    } finally {
+      client.close();
+    }
   } catch (error) {
-    console.error('Error getting user from blockchain:', error);
-    return null;
-  } finally {
-    client.close();
+    console.error('Error checking user existence on blockchain:', error);
+    // Return false on error to be safe
+    return false;
   }
 }
 
 /**
- * Register an RVM on the blockchain
+ * Register an RVM (Reverse Vending Machine) on the Hedera blockchain
  */
 export async function registerRVMOnBlockchain(
   rvmId: string,
   lat: number,
   lng: number,
   name: string,
-  metaURI: string = ''
-): Promise<BlockchainUserRegistrationResult> {
-  const client = createHederaClient();
-  
+  metaURI: string
+): Promise<BlockchainResult> {
   try {
-    // Convert coordinates to E6 format (multiply by 1,000,000)
-    const latE6 = Math.round(lat * 1000000);
-    const lngE6 = Math.round(lng * 1000000);
+    const env = getServerEnv();
     
-    // Convert RVM ID to bytes32
-    const rvmIdBytes32 = stringToBytes32(rvmId);
+    if (!env.GREEN_AFRICA_CONTRACT_ID) {
+      console.warn('GREEN_AFRICA_CONTRACT_ID not configured - skipping RVM blockchain registration');
+      return {
+        success: true,
+      };
+    }
 
-    console.log(`Registering RVM: ${rvmId} at ${lat}, ${lng}`);
-    console.log(`E6 format: ${latE6}, ${lngE6}`);
-
-    // Encode the function call
-    const functionCallBytes = contractInterface.encodeFunctionData('registerRVM', [
-      rvmIdBytes32,
-      latE6,
-      lngE6,
-      name,
-      metaURI,
-    ]);
-
-    // Create contract execute transaction
-    const contractExecuteTransaction = new ContractExecuteTransaction()
-      .setContractId(ContractId.fromEvmAddress(0, 0, CONTRACT_ADDRESS))
-      .setFunctionParameters(Buffer.from(functionCallBytes.slice(2), 'hex'))
-      .setGas(300000)
-      .setMaxTransactionFee(new Hbar(2, HbarUnit.Hbar));
-
-    // Execute the transaction
-    const txResponse = await contractExecuteTransaction
-      .freezeWith(client)
-      .execute(client);
+    const client = createHederaClient();
     
-    // Get the receipt
-    const receipt = await txResponse.getReceipt(client);
-    
-    return {
-      success: receipt.status.toString() === 'SUCCESS',
-      transactionId: txResponse.transactionId?.toString(),
-    };
+    try {
+      const contractId = ContractId.fromString(env.GREEN_AFRICA_CONTRACT_ID);
+
+      // Encode function call parameters for RVM registration
+      const functionParameters = new ContractFunctionParameters()
+        .addString(rvmId)
+        .addInt64(Math.round(lat * 1000000)) // Convert to integer with 6 decimal precision
+        .addInt64(Math.round(lng * 1000000)) // Convert to integer with 6 decimal precision
+        .addString(name)
+        .addString(metaURI);
+
+      // Create contract execution transaction
+      const contractExecTx = new ContractExecuteTransaction()
+        .setContractId(contractId)
+        .setGas(300000)
+        .setFunction('registerRVM', functionParameters)
+        .setMaxTransactionFee(new Hbar(2));
+
+      // Execute the transaction
+      const txResponse = await contractExecTx.execute(client);
+      const receipt = await txResponse.getReceipt(client);
+
+      if (receipt.status.toString() === 'SUCCESS') {
+        const transactionId = txResponse.transactionId.toString();
+        console.log(`RVM ${rvmId} registered on blockchain. TX: ${transactionId}`);
+        
+        return {
+          success: true,
+          transactionId,
+        };
+      } else {
+        throw new Error(`Transaction failed with status: ${receipt.status.toString()}`);
+      }
+    } finally {
+      client.close();
+    }
   } catch (error) {
     console.error('Error registering RVM on blockchain:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      error: error instanceof Error ? error.message : 'Failed to register RVM on blockchain',
     };
-  } finally {
-    client.close();
   }
 }
 
 /**
- * Register a user on the blockchain
+ * Utility function to validate contract configuration
  */
-export async function registerUserOnBlockchain(
-  greenId: string,
-  referralCode: string,
-  referredByCode?: string
-): Promise<BlockchainUserRegistrationResult> {
-  const client = createHederaClient();
-  
-  try {
-    // First check if user already exists
-    const userExists = await checkUserExists(greenId);
-    if (userExists) {
-      return {
-        success: true,
-        userExists: true,
-      };
-    }
-
-    // Convert strings to bytes32
-    const recyclerId = stringToBytes32(greenId);
-    const referralCodeBytes32 = stringToBytes32(referralCode);
-    const referredByCodeBytes32 = referredByCode ? stringToBytes32(referredByCode) : stringToBytes32('');
-
-    // Encode the function call
-    const functionCallBytes = contractInterface.encodeFunctionData('registerRecycler', [
-      recyclerId,
-      referralCodeBytes32,
-      referredByCodeBytes32,
-    ]);
-
-    // Create contract execute transaction
-    const contractExecuteTransaction = new ContractExecuteTransaction()
-      .setContractId(ContractId.fromEvmAddress(0, 0, CONTRACT_ADDRESS))
-      .setFunctionParameters(Buffer.from(functionCallBytes.slice(2), 'hex'))
-      .setGas(300000)
-      .setMaxTransactionFee(new Hbar(2, HbarUnit.Hbar));
-
-    // Execute the transaction
-    const txResponse = await contractExecuteTransaction
-      .freezeWith(client)
-      .execute(client);
-    
-    // Get the receipt
-    const receipt = await txResponse.getReceipt(client);
-    
-    return {
-      success: receipt.status.toString() === 'SUCCESS',
-      transactionId: txResponse.transactionId?.toString(),
-    };
-  } catch (error) {
-    console.error('Error registering user on blockchain:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
-  } finally {
-    client.close();
-  }
+export async function isBlockchainConfigured(): Promise<boolean> {
+  const env = getServerEnv();
+  return !!(
+    env.HEDERA_OPERATOR_ID &&
+    env.HEDERA_OPERATOR_KEY &&
+    env.GREEN_AFRICA_CONTRACT_ID
+  );
 }

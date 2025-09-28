@@ -17,6 +17,18 @@ interface RedeemData {
   points: number;
 }
 
+interface ExtendedRedeemData extends RedeemData {
+  network?: string;
+  detectedNetwork?: string;
+}
+
+interface RedemptionResult {
+  success: boolean;
+  transactionId?: string;
+  error?: string;
+  message?: string;
+}
+
 interface ProfileData {
   name: string;
   phone: string;
@@ -117,7 +129,7 @@ function DashboardContent() {
     amount: '',
     points: 0
   });
-  const [redemptionResult, setRedemptionResult] = useState<any>(null);
+  const [redemptionResult, setRedemptionResult] = useState<RedemptionResult | null>(null);
   const [redemptionError, setRedemptionError] = useState('');
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [profileData, setProfileData] = useState({
@@ -196,7 +208,7 @@ function DashboardContent() {
     setShowWelcome(false);
   };
 
-  const handleRedeemSubmit = async (step: number, data: Partial<RedeemData>) => {
+  const handleRedeemSubmit = async (step: number, data: Partial<ExtendedRedeemData>) => {
     if (step === 3 && data.type === 'airtime' && user?.uid) {
       // Final submission - process airtime redemption
       setIsRedeeming(true);
@@ -205,7 +217,7 @@ function DashboardContent() {
           userId: user.uid,
           phone: data.phone || redeemData.phone,
           amount: parseInt(data.amount || redeemData.amount),
-          network: (data as any).network || (data as any).detectedNetwork
+          network: data.network || data.detectedNetwork || ''
         });
 
         if (result.success) {

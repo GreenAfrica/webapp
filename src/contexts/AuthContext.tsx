@@ -22,6 +22,7 @@ import {
   processReferral,
   type GreenAfricaUser,
 } from '@/lib/firebase/firestore';
+import { checkAndMigrateUserAction } from '@/actions/user-migration';
 import { registerUserOnHedera } from '@/actions/blockchain';
 import { AuthContextType, PhoneVerificationState } from '@/types';
 
@@ -75,44 +76,63 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           await processReferral(referralCode, firebaseUser.uid);
         }
       } else {
-        // Update existing user with latest Firebase data
-        const updates: Partial<GreenAfricaUser> = {};
-        if (firebaseUser.displayName && firebaseUser.displayName !== userData.displayName) {
-          updates.displayName = firebaseUser.displayName;
-        }
-        if (firebaseUser.phoneNumber && firebaseUser.phoneNumber !== userData.phoneNumber) {
-          updates.phoneNumber = firebaseUser.phoneNumber;
-        }
+        // Check if existing user needs migration to Hedera account using secure server action
+        const migrationResult = await checkAndMigrateUserAction(firebaseUser.uid);
         
-        if (Object.keys(updates).length > 0) {
-          await updateUser(firebaseUser.uid, updates);
-        }
-      }
-
-      // Register user on Hedera blockchain
-      try {
-        console.log(`Registering new user ${userData.greenId} on blockchain`);
-        const blockchainResult = await registerUserOnHedera(
-          userData.greenId,
-          userData.referralCode,
-          referralCode
-        );
-        
-        if (blockchainResult.success) {
-          console.log(`Blockchain registration successful for ${userData.greenId}:`, blockchainResult.message);
-          if (blockchainResult.transactionId) {
-            console.log(`Transaction ID: ${blockchainResult.transactionId}`);
+        if (migrationResult.success && migrationResult.data) {
+          // Get updated user data after potential migration
+          userData = await getUser(firebaseUser.uid);
+          
+          if (userData) {
+            // Update existing user with latest Firebase data
+            const updates: Partial<GreenAfricaUser> = {};
+            if (firebaseUser.displayName && firebaseUser.displayName !== userData.displayName) {
+              updates.displayName = firebaseUser.displayName;
+            }
+            if (firebaseUser.phoneNumber && firebaseUser.phoneNumber !== userData.phoneNumber) {
+              updates.phoneNumber = firebaseUser.phoneNumber;
+            }
+            
+            if (Object.keys(updates).length > 0) {
+              await updateUser(firebaseUser.uid, updates);
+              // Refresh userData after update
+              userData = await getUser(firebaseUser.uid);
+            }
           }
         } else {
-          console.warn(`Blockchain registration failed for ${userData.greenId}:`, blockchainResult.error);
-          // User registration continues despite blockchain failure
+          console.error('Migration check failed:', migrationResult.error);
+          // Fall back to getting user data without migration
+          userData = await getUser(firebaseUser.uid);
         }
-      } catch (blockchainError) {
-        console.error('Blockchain registration error:', blockchainError);
-        // User registration continues despite blockchain failure
       }
 
-      setGreenAfricaUser(userData);
+      // Only proceed with blockchain registration if we have valid user data
+      if (userData) {
+        // Register user on Hedera blockchain
+        try {
+          console.log(`Registering new user ${userData.greenId} on blockchain`);
+          const blockchainResult = await registerUserOnHedera(
+            userData.greenId,
+            userData.referralCode,
+            referralCode
+          );
+          
+          if (blockchainResult.success) {
+            console.log(`Blockchain registration successful for ${userData.greenId}:`, blockchainResult.message);
+            if (blockchainResult.transactionId) {
+              console.log(`Transaction ID: ${blockchainResult.transactionId}`);
+            }
+          } else {
+            console.warn(`Blockchain registration failed for ${userData.greenId}:`, blockchainResult.error);
+            // User registration continues despite blockchain failure
+          }
+        } catch (blockchainError) {
+          console.error('Blockchain registration error:', blockchainError);
+          // User registration continues despite blockchain failure
+        }
+
+        setGreenAfricaUser(userData);
+      }
     } catch (error) {
       console.error('Error handling user data:', error);
       

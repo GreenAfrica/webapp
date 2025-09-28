@@ -302,23 +302,3 @@ export async function redeemAirtime(
     };
   }
 }
-
-/**
- * Get redemption status for user
- */
-export async function getRedemptionStatus(redemptionId: string): Promise<{
-  success: boolean;
-  status?: string;
-  error?: string;
-}> {
-  try {
-    // This would require implementing getRedemptionAdmin function
-    // For now, just return success - we'll handle status through the UI
-    return { success: true, status: 'pending' };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
-}

@@ -18,6 +18,7 @@ import {
   CollectionReference,
 } from 'firebase/firestore';
 import { db } from './config';
+import { generateHederaAccountAction } from '@/actions/hedera-account';
 import type { GreenAfricaUser, Transaction, Referral, RedemptionRequest } from '@/types';
 
 export type { GreenAfricaUser, Transaction, Referral, RedemptionRequest };
@@ -28,7 +29,7 @@ export const transactionsRef = collection(db, 'transactions') as CollectionRefer
 export const referralsRef = collection(db, 'referrals') as CollectionReference<Referral>;
 export const redemptionsRef = collection(db, 'redemptions') as CollectionReference<RedemptionRequest>;
 
-// Generate unique Green ID
+// Generate unique Green ID (legacy function - keeping for fallback)
 const generateGreenId = (): string => {
   const year = new Date().getFullYear();
   const randomNum = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
@@ -45,22 +46,54 @@ const generateReferralCode = (displayName: string): string => {
 
 // User Management Functions
 export const createUser = async (uid: string, email: string, displayName: string, phoneNumber?: string): Promise<GreenAfricaUser> => {
-  const greenId = generateGreenId();
   const referralCode = generateReferralCode(displayName);
   const userDocRef = doc(usersRef, uid);
 
-  await setDoc(userDocRef, {
-    uid,
-    email,
-    displayName,
-    greenId,
-    totalPoints: 0,
-    referralCode,
-    referralPoints: 0,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    ...(phoneNumber ? { phoneNumber } : {}),
-  });
+  try {
+    console.log('Generating Hedera account for new user via server action...');
+    
+    // Generate new Hedera account using secure server action
+    const hederaResult = await generateHederaAccountAction();
+    
+    if (hederaResult.success && hederaResult.data) {
+      console.log(`Generated Hedera account: ${hederaResult.data.accountId}`);
+      
+      // Use Hedera account ID as Green ID
+      await setDoc(userDocRef, {
+        uid,
+        email,
+        displayName,
+        greenId: hederaResult.data.accountId, // Using Hedera account ID as Green ID
+        totalPoints: 0,
+        referralCode,
+        referralPoints: 0,
+        evmAddress: hederaResult.data.evmAddress,
+        encryptedPrivateKey: hederaResult.data.encryptedPrivateKey,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        ...(phoneNumber ? { phoneNumber } : {}),
+      });
+    } else {
+      throw new Error(hederaResult.error || 'Failed to generate Hedera account');
+    }
+  } catch (hederaError) {
+    console.error('Failed to generate Hedera account, using fallback Green ID:', hederaError);
+    
+    // Fallback to old Green ID generation if Hedera fails
+    const greenId = generateGreenId();
+    await setDoc(userDocRef, {
+      uid,
+      email,
+      displayName,
+      greenId,
+      totalPoints: 0,
+      referralCode,
+      referralPoints: 0,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      ...(phoneNumber ? { phoneNumber } : {}),
+    });
+  }
 
   const createdUser = await getDoc(userDocRef);
 
@@ -293,3 +326,6 @@ export const addPointsToUser = async (uid: string, points: number, description: 
 export const deleteUser = async (uid: string): Promise<void> => {
   await deleteDoc(doc(usersRef, uid));
 };
+
+// Migration functions moved to server actions for security
+// See: src/actions/user-migration.ts

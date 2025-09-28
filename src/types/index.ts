@@ -32,6 +32,9 @@ export interface GreenAfricaUser {
   referralPoints: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  // Hedera account fields (optional for backwards compatibility)
+  evmAddress?: string;
+  encryptedPrivateKey?: string;
 }
 
 export interface Transaction {
