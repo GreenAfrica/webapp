@@ -33,7 +33,7 @@ export default function ReferralCard({ referralCode, totalReferrals = 0, referra
           text: `🌱 Join me on GreenAfrica! Turn your recycling into instant rewards. Use my referral link and we both get ${pointsPerReferral} Green Points!`,
           url: referralLink,
         });
-      } catch (error) {
+      } catch {
         console.log('Share cancelled or failed');
       } finally {
         setIsSharing(false);

@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
-  getUserTransactions,
   subscribeToUserTransactions,
   createRedemptionRequest,
   getUserRedemptions,
@@ -59,7 +58,7 @@ export const useRedemptions = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchRedemptions = async () => {
+  const fetchRedemptions = useCallback(async () => {
     if (!user?.uid) {
       setRedemptions([]);
       setLoading(false);
@@ -77,11 +76,9 @@ export const useRedemptions = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchRedemptions();
   }, [user?.uid]);
+
+  useEffect(() => {fetchRedemptions()}, [fetchRedemptions]);
 
   const redeemPoints = async (
     type: 'airtime' | 'data',
@@ -130,7 +127,7 @@ export const useAddPoints = () => {
     uid: string,
     points: number,
     description: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ) => {
     try {
       setLoading(true);

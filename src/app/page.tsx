@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { extractReferralCode, storeReferralCode, isValidReferralCodeFormat } from '@/lib/utils/referral';
 import Image from 'next/image';
@@ -29,10 +29,15 @@ const imgShippingContainer = "/fc04426d8c3dbe40684d49abd0bc332ceddb05e2.svg";
 const imgGroup2 = "/985d925fd2f3760e185da35d687afbd9602fb471.svg";
 const imgGroup3 = "/a1aa7779199dd56e5453d6b77e402225e4b6db6d.svg";
 
-export default function Home() {
-  const router = useRouter();
+// Component that handles referral code processing using useSearchParams
+function ReferralHandler({ 
+  onReferralMessage,
+  router 
+}: { 
+  onReferralMessage: (message: string | null) => void;
+  router: ReturnType<typeof useRouter>;
+}) {
   const searchParams = useSearchParams();
-  const [referralMessage, setReferralMessage] = useState<string | null>(null);
 
   // Handle referral code from URL parameters
   useEffect(() => {
@@ -43,7 +48,7 @@ export default function Home() {
         storeReferralCode(referralCode);
         
         // Show welcome message
-        setReferralMessage(`🎉 You've been referred by a friend! Sign up now to start earning Green Points together!`);
+        onReferralMessage(`🎉 You've been referred by a friend! Sign up now to start earning Green Points together!`);
         
         // Log for debugging
         console.log('Referral code detected and stored:', referralCode);
@@ -57,7 +62,20 @@ export default function Home() {
         console.warn('Invalid referral code format:', referralCode);
       }
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, onReferralMessage]);
+
+  return null; // This component only handles side effects
+}
+
+// Home content component that doesn't use useSearchParams
+function HomeContent() {
+  const router = useRouter();
+  const [referralMessage, setReferralMessage] = useState<string | null>(null);
+
+  // Handle referral message callback
+  const handleReferralMessage = (message: string | null) => {
+    setReferralMessage(message);
+  };
 
   return (
     <div className="bg-white flex flex-col items-start relative min-h-screen w-full">
@@ -307,6 +325,27 @@ export default function Home() {
           </p>
         </div>
       </div>
+
+      {/* ReferralHandler wrapped in Suspense */}
+      <Suspense fallback={null}>
+        <ReferralHandler onReferralMessage={handleReferralMessage} router={router} />
+      </Suspense>
     </div>
+  );
+}
+
+// Main Home Page component with Suspense wrapper
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }

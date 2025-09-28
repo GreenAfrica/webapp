@@ -2,7 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from 'firebase/auth';
-import { ConfirmationResult, RecaptchaVerifier } from 'firebase/auth';
+import { RecaptchaVerifier } from 'firebase/auth';
+import { Timestamp } from 'firebase/firestore';
 import {
   signInWithGoogle,
   signInWithFacebook,
@@ -127,8 +128,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           totalPoints: 0,
           referralCode: 'TEMP' + Date.now(),
           referralPoints: 0,
-          createdAt: new Date() as unknown as any,
-          updatedAt: new Date() as unknown as any,
+          createdAt: Timestamp.fromDate(new Date()),
+          updatedAt: Timestamp.fromDate(new Date()),
         };
         setGreenAfricaUser(fallbackUser);
       }

@@ -1,7 +1,7 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { getStorage, connectStorageEmulator } from 'firebase/storage';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -20,18 +20,5 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-
-// Connect to emulators in development (optional)
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  // Only connect to emulators if not already connected
-  try {
-    // Uncomment these lines if you want to use Firebase emulators in development
-    // connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-    // connectFirestoreEmulator(db, 'localhost', 8080);
-    // connectStorageEmulator(storage, 'localhost', 9199);
-  } catch (error) {
-    console.log('Firebase emulators already connected');
-  }
-}
 
 export default app;

@@ -1,20 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { extractReferralCode, storeReferralCode, isValidReferralCodeFormat } from '@/lib/utils/referral';
 
-export default function LoginPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [step, setStep] = useState<'phone' | 'verify'>('phone');
-  const [error, setError] = useState<string | null>(null);
-  const [referralMessage, setReferralMessage] = useState<string | null>(null);
-
-  const { signInWithGoogle, signInWithFacebook, signInWithPhone, verifyPhoneCode, user, loading } = useAuth();
-  const router = useRouter();
+// Component that handles referral code processing using useSearchParams
+function ReferralHandler({ 
+  onReferralMessage 
+}: { 
+  onReferralMessage: (message: string | null) => void 
+}) {
   const searchParams = useSearchParams();
 
   // Handle referral code from URL parameters
@@ -26,7 +22,7 @@ export default function LoginPage() {
         storeReferralCode(referralCode);
         
         // Show welcome message
-        setReferralMessage(`🎉 You've been referred by a friend! Sign up to start earning Green Points together!`);
+        onReferralMessage(`🎉 You've been referred by a friend! Sign up to start earning Green Points together!`);
         
         // Log for debugging
         console.log('Referral code detected and stored:', referralCode);
@@ -35,7 +31,27 @@ export default function LoginPage() {
         console.warn('Invalid referral code format:', referralCode);
       }
     }
-  }, [searchParams]);
+  }, [searchParams, onReferralMessage]);
+
+  return null; // This component only handles side effects
+}
+
+// Login content component that doesn't use useSearchParams
+function LoginContent() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [step, setStep] = useState<'phone' | 'verify'>('phone');
+  const [error, setError] = useState<string | null>(null);
+  const [referralMessage, setReferralMessage] = useState<string | null>(null);
+
+  const { signInWithGoogle, signInWithFacebook, signInWithPhone, verifyPhoneCode, user, loading } = useAuth();
+  const router = useRouter();
+
+  // Handle referral message callback
+  const handleReferralMessage = (message: string | null) => {
+    setReferralMessage(message);
+  };
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -277,6 +293,27 @@ export default function LoginPage() {
           <a href="#" className="text-primary-600 hover:text-primary-700">Privacy Policy</a>
         </div>
       </div>
+
+      {/* ReferralHandler wrapped in Suspense */}
+      <Suspense fallback={null}>
+        <ReferralHandler onReferralMessage={handleReferralMessage} />
+      </Suspense>
     </div>
+  );
+}
+
+// Main Login Page component with Suspense wrapper
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

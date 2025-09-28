@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import BaseModal from '@/components/shared/BaseModal';
 import { useAuth } from '@/hooks/useAuth';
-import { useUserTransactions, useRedemptions } from '@/hooks/useFirestore';
+import { useUserTransactions, useAddPoints } from '@/hooks/useFirestore';
 import { useReferrals } from '@/hooks/useReferrals';
 import ReferralCard from '@/components/shared/ReferralCard';
 
@@ -22,31 +22,92 @@ interface ProfileData {
   email: string;
 }
 
-// Mock user data
-const mockUser = {
-  name: 'John Doe',
-  greenId: 'GRN-2024-001',
-  totalPoints: 1247,
-  referralCode: 'JOHN2024',
-  referralPoints: 150,
-  phone: '+234 800 123 4567',
-  email: 'john@example.com'
-};
+// Component that handles reward processing using useSearchParams
+function RewardHandler({ 
+  onShowPointsEarned 
+}: { 
+  onShowPointsEarned: (points: number, code: string) => void 
+}) {
+  const { user, greenAfricaUser } = useAuth();
+  const { addPoints } = useAddPoints();
+  const searchParams = useSearchParams();
+  const processedRewardRef = useRef<string | null>(null);
 
-const mockHistory = [
-  { id: 1, type: 'earned', amount: 25, description: 'Bottles recycled at Mall', date: '2024-01-15', location: 'Ikeja Mall' },
-  { id: 2, type: 'redeemed', amount: -100, description: '₦200 Airtime', date: '2024-01-14', phone: '+234 800 123 4567' },
-  { id: 3, type: 'earned', amount: 15, description: 'Bottles recycled', date: '2024-01-13', location: 'University Campus' },
-  { id: 4, type: 'referral', amount: 50, description: 'Friend joined via referral', date: '2024-01-12', referral: 'Sarah M.' },
-  { id: 5, type: 'earned', amount: 30, description: 'Bottles recycled', date: '2024-01-11', location: 'Shopping Center' },
-];
+  // Handle query parameters for point rewards
+  useEffect(() => {
+    const handlePointReward = async () => {
+      if (!user?.uid || !greenAfricaUser) return;
 
-export default function DashboardPage() {
+      const code = searchParams.get('code');
+      const pointValue = searchParams.get('points') || searchParams.get('point');
+      
+      if (code && pointValue) {
+        // Create a unique identifier for this reward combination
+        const rewardIdentifier = `${code}-${pointValue}-${user.uid}`;
+        
+        // Check if we've already processed this exact reward
+        if (processedRewardRef.current === rewardIdentifier) {
+          console.log('Reward already processed, skipping:', rewardIdentifier);
+          return;
+        }
+
+        console.log('Processing new reward:', rewardIdentifier);
+
+        try {
+          const points = parseInt(pointValue, 10);
+          
+          // Validate point value
+          if (isNaN(points) || points <= 0) {
+            console.error('Invalid point value:', pointValue);
+            return;
+          }
+
+          // Mark this reward as being processed BEFORE making the API call
+          processedRewardRef.current = rewardIdentifier;
+
+          // Clear URL parameters immediately to prevent re-processing
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, newUrl);
+
+          console.log('Adding points to user:', { uid: user.uid, points, code });
+
+          // Add points to user
+          await addPoints(
+            user.uid,
+            points,
+            `Reward earned with code: ${code}`,
+            { rewardCode: code }
+          );
+
+          console.log('Points added successfully');
+
+          // Show success modal
+          onShowPointsEarned(points, code);
+
+        } catch (error) {
+          console.error('Error adding points:', error);
+          // Reset the processed ref on error so user can retry
+          processedRewardRef.current = null;
+        }
+      }
+    };
+
+    handlePointReward();
+  }, [user?.uid, greenAfricaUser, searchParams, addPoints, onShowPointsEarned]);
+
+  return null; // This component only handles side effects
+}
+
+// Dashboard content component that doesn't use useSearchParams
+function DashboardContent() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [showRedeem, setShowRedeem] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showRedeemSuccess, setShowRedeemSuccess] = useState(false);
   const [showProfileSuccess, setShowProfileSuccess] = useState(false);
+  const [showPointsEarned, setShowPointsEarned] = useState(false);
+  const [earnedPoints, setEarnedPoints] = useState(0);
+  const [rewardCode, setRewardCode] = useState('');
   const [redeemStep, setRedeemStep] = useState(1);
   const [redeemData, setRedeemData] = useState({
     type: '',
@@ -59,13 +120,12 @@ export default function DashboardPage() {
     phone: '',
     email: ''
   });
-  const [copied, setCopied] = useState(false);
 
   // Firebase hooks - all hooks must be called before any early returns
-  const { user, greenAfricaUser, signOut, updateProfile, loading } = useAuth();
+  const { user, greenAfricaUser, signOut, loading } = useAuth();
   const { transactions, loading: transactionsLoading } = useUserTransactions();
-  const { redeemPoints } = useRedemptions();
   const { totalReferrals, totalReferralPoints } = useReferrals(user?.uid);
+  const { loading: addingPoints } = useAddPoints();
   const router = useRouter();
 
   // All useEffect hooks must be called before any early returns
@@ -94,6 +154,13 @@ export default function DashboardPage() {
       setShowWelcome(true);
     }
   }, []);
+
+  // Handle points earned callback
+  const handleShowPointsEarned = (points: number, code: string) => {
+    setEarnedPoints(points);
+    setRewardCode(code);
+    setShowPointsEarned(true);
+  };
 
   // Show loading while checking auth state - moved after all hooks
   if (loading) {
@@ -124,13 +191,6 @@ export default function DashboardPage() {
     setShowWelcome(false);
   };
 
-  const handleCopyReferral = () => {
-    const referralLink = `https://greenafrica.earth/login?ref=${mockUser.referralCode}`;
-    navigator.clipboard.writeText(referralLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const handleRedeemSubmit = (step: number, data: Partial<RedeemData>) => {
     if (step === 3) {
       // Final submission
@@ -150,8 +210,9 @@ export default function DashboardPage() {
     setShowProfileSuccess(true);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     localStorage.removeItem('welcomeShown');
+    await signOut();
     window.location.href = '/login';
   };
 
@@ -173,11 +234,8 @@ export default function DashboardPage() {
                 <p className="text-sm text-primary-600 font-mono">{greenAfricaUser?.greenId || 'Loading...'}</p>
               </div>
               <button
-                onClick={async () => {
-                  localStorage.removeItem('welcomeShown');
-                  await signOut();
-                  router.push('/login');
-                }}
+                title='Logout'
+                onClick={handleLogout}
                 className="text-gray-500 hover:text-gray-700 transition-colors duration-200"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -247,32 +305,55 @@ export default function DashboardPage() {
           </div>
           
           <div className="space-y-3">
-            {mockHistory.map((item) => (
-              <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    item.type === 'earned' ? 'bg-success-100 text-success-600' :
-                    item.type === 'redeemed' ? 'bg-warning-100 text-warning-600' :
-                    'bg-primary-100 text-primary-600'
-                  }`}>
-                    {item.type === 'earned' ? '↗' : item.type === 'redeemed' ? '↙' : '👥'}
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{item.description}</p>
-                    <p className="text-sm text-gray-600">
-                      {item.date} {item.location && `• ${item.location}`}
-                      {item.phone && `• ${item.phone}`}
-                      {item.referral && `• ${item.referral}`}
-                    </p>
-                  </div>
-                </div>
-                <div className={`font-semibold ${
-                  item.amount > 0 ? 'text-success-600' : 'text-warning-600'
-                }`}>
-                  {item.amount > 0 ? '+' : ''}{item.amount}
-                </div>
+            {transactionsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                <p className="ml-3 text-gray-600">Loading activities...</p>
               </div>
-            ))}
+            ) : transactions.length > 0 ? (
+              transactions.map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      item.type === 'earned' ? 'bg-success-100 text-success-600' :
+                      item.type === 'redeemed' ? 'bg-warning-100 text-warning-600' :
+                      'bg-primary-100 text-primary-600'
+                    }`}>
+                      {item.type === 'earned' ? '↗' : item.type === 'redeemed' ? '↙' : '👥'}
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{item.description}</p>
+                      <p className="text-sm text-gray-600">
+                        {item.date?.toDate()?.toLocaleDateString()} {item.location && `• ${item.location}`}
+                        {item.phone && `• ${item.phone}`}
+                        {item.referral && `• ${item.referral}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`font-semibold ${
+                    item.amount > 0 ? 'text-success-600' : 'text-warning-600'
+                  }`}>
+                    {item.amount > 0 ? '+' : ''}{item.amount}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <h4 className="font-semibold text-gray-900 mb-2">No activities yet</h4>
+                <p className="text-gray-500 mb-4">Start earning points by recycling bottles at our reverse vending machines!</p>
+                <button
+                  onClick={() => setShowWelcome(true)}
+                  className="btn-primary"
+                >
+                  Learn How it Works
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </main>
@@ -292,7 +373,7 @@ export default function DashboardPage() {
         }}
         step={redeemStep}
         data={redeemData}
-        userPoints={mockUser.totalPoints}
+        userPoints={greenAfricaUser?.totalPoints || 0}
         onSubmit={handleRedeemSubmit}
       />
       
@@ -317,7 +398,36 @@ export default function DashboardPage() {
         title="Profile Updated!"
         message="Your profile information has been updated successfully."
       />
+
+      <PointsEarnedModal 
+        isOpen={showPointsEarned}
+        onClose={() => setShowPointsEarned(false)}
+        points={earnedPoints}
+        rewardCode={rewardCode}
+        addingPoints={addingPoints}
+      />
+
+      {/* RewardHandler wrapped in Suspense */}
+      <Suspense fallback={null}>
+        <RewardHandler onShowPointsEarned={handleShowPointsEarned} />
+      </Suspense>
     </div>
+  );
+}
+
+// Main Dashboard Page component with Suspense wrapper
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }
 
@@ -584,6 +694,7 @@ function ProfileModal({ isOpen, onClose, data, onSubmit }: {
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             className="input-field"
+            placeholder='John Doe'
             required
           />
         </div>
@@ -595,6 +706,7 @@ function ProfileModal({ isOpen, onClose, data, onSubmit }: {
             value={formData.phone}
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             className="input-field"
+            placeholder='+234 800 000 0000'
             required
           />
         </div>
@@ -606,6 +718,7 @@ function ProfileModal({ isOpen, onClose, data, onSubmit }: {
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             className="input-field"
+            placeholder='john@example.com'
             required
           />
         </div>
@@ -619,6 +732,46 @@ function ProfileModal({ isOpen, onClose, data, onSubmit }: {
           </button>
         </div>
       </form>
+    </BaseModal>
+  );
+}
+
+// Points Earned Modal Component
+function PointsEarnedModal({ isOpen, onClose, points, rewardCode, addingPoints }: {
+  isOpen: boolean;
+  onClose: () => void;
+  points: number;
+  rewardCode: string;
+  addingPoints: boolean;
+}) {
+  return (
+    <BaseModal isOpen={isOpen} onClose={onClose} showCloseButton={false} size="lg">
+      <div className="text-center">
+        <div className="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <div className="text-4xl">🎉</div>
+        </div>
+        <h3 className="font-display font-bold text-2xl text-primary-800 mb-2">
+          Congratulations!
+        </h3>
+        <p className="text-gray-600 mb-6 text-lg">
+          You have earned <span className="font-bold text-primary-600">{points} points</span>
+        </p>
+        
+        <div className="bg-primary-50 p-4 rounded-lg mb-8">
+          <p className="text-sm text-gray-600 mb-1">Reward Code</p>
+          <p className="font-mono text-primary-700 font-semibold">{rewardCode}</p>
+        </div>
+        
+        <div className="text-center mb-6">
+          <p className="text-sm text-gray-500">
+            Your points have been added to your account and will appear in your recent activities.
+          </p>
+        </div>
+
+        <button onClick={onClose} className="btn-primary" disabled={addingPoints}>
+          {addingPoints ? 'Adding Points...' : 'Continue to Dashboard'}
+        </button>
+      </div>
     </BaseModal>
   );
 }

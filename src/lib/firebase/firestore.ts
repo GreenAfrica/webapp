@@ -15,62 +15,12 @@ import {
   increment,
   serverTimestamp,
   Timestamp,
-  DocumentReference,
   CollectionReference,
-  QuerySnapshot,
-  DocumentSnapshot,
 } from 'firebase/firestore';
 import { db } from './config';
+import type { GreenAfricaUser, Transaction, Referral, RedemptionRequest } from '@/types';
 
-// Type definitions for our data models
-export interface GreenAfricaUser {
-  uid: string;
-  email: string;
-  displayName: string;
-  phoneNumber?: string;
-  greenId: string;
-  totalPoints: number;
-  referralCode: string;
-  referralPoints: number;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
-
-export interface Transaction {
-  id?: string;
-  userId: string;
-  type: 'earned' | 'redeemed' | 'referral';
-  amount: number;
-  description: string;
-  date: Timestamp;
-  location?: string;
-  phone?: string;
-  referral?: string;
-  metadata?: Record<string, any>;
-}
-
-export interface Referral {
-  id?: string;
-  referrerUid: string;
-  referredUid: string;
-  referralCode: string;
-  pointsAwarded: number;
-  createdAt: Timestamp;
-  status: 'pending' | 'completed';
-}
-
-export interface RedemptionRequest {
-  id?: string;
-  userId: string;
-  type: 'airtime' | 'data';
-  amount: string;
-  points: number;
-  phone: string;
-  status: 'pending' | 'completed' | 'failed';
-  createdAt: Timestamp;
-  completedAt?: Timestamp;
-  transactionId?: string;
-}
+export type { GreenAfricaUser, Transaction, Referral, RedemptionRequest };
 
 // Collection references
 export const usersRef = collection(db, 'users') as CollectionReference<GreenAfricaUser>;
@@ -97,8 +47,9 @@ const generateReferralCode = (displayName: string): string => {
 export const createUser = async (uid: string, email: string, displayName: string, phoneNumber?: string): Promise<GreenAfricaUser> => {
   const greenId = generateGreenId();
   const referralCode = generateReferralCode(displayName);
-  
-  const userData: any = {
+  const userDocRef = doc(usersRef, uid);
+
+  await setDoc(userDocRef, {
     uid,
     email,
     displayName,
@@ -108,22 +59,16 @@ export const createUser = async (uid: string, email: string, displayName: string
     referralPoints: 0,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  };
+    ...(phoneNumber ? { phoneNumber } : {}),
+  });
 
-  // Only add phoneNumber if it's not undefined
-  if (phoneNumber !== undefined && phoneNumber !== null) {
-    userData.phoneNumber = phoneNumber;
+  const createdUser = await getDoc(userDocRef);
+
+  if (!createdUser.exists()) {
+    throw new Error('Failed to retrieve newly created user');
   }
 
-  await setDoc(doc(usersRef, uid), userData);
-  
-  // Return the typed version for consistency
-  return {
-    ...userData,
-    phoneNumber,
-    createdAt: userData.createdAt as Timestamp,
-    updatedAt: userData.updatedAt as Timestamp,
-  } as GreenAfricaUser;
+  return createdUser.data();
 };
 
 export const getUser = async (uid: string): Promise<GreenAfricaUser | null> => {
@@ -135,20 +80,19 @@ export const getUser = async (uid: string): Promise<GreenAfricaUser | null> => {
 };
 
 export const updateUser = async (uid: string, updates: Partial<GreenAfricaUser>): Promise<void> => {
-  // Filter out undefined values to prevent Firestore errors
-  const cleanUpdates: any = {
-    updatedAt: serverTimestamp(),
-  };
+  // Filter out undefined and null values, letting Firebase handle the types
+  const updatesToApply: Record<string, unknown> = {};
 
-  // Only add fields that are not undefined
-  Object.keys(updates).forEach(key => {
-    const value = updates[key as keyof GreenAfricaUser];
+  for (const [key, value] of Object.entries(updates)) {
     if (value !== undefined && value !== null) {
-      cleanUpdates[key] = value;
+      updatesToApply[key] = value;
     }
-  });
+  }
 
-  await updateDoc(doc(usersRef, uid), cleanUpdates);
+  await updateDoc(doc(usersRef, uid), {
+    ...updatesToApply,
+    updatedAt: serverTimestamp(),
+  });
 };
 
 export const getUserByGreenId = async (greenId: string): Promise<GreenAfricaUser | null> => {
@@ -336,7 +280,7 @@ export const subscribeToUser = (uid: string, callback: (user: GreenAfricaUser | 
   });
 };
 
-export const addPointsToUser = async (uid: string, points: number, description: string, metadata?: Record<string, any>): Promise<void> => {
+export const addPointsToUser = async (uid: string, points: number, description: string, metadata?: Record<string, unknown>): Promise<void> => {
   await addTransaction({
     userId: uid,
     type: 'earned',

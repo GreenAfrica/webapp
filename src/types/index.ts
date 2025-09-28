@@ -1,3 +1,6 @@
+import type { Timestamp } from 'firebase/firestore';
+import type { ConfirmationResult } from 'firebase/auth';
+
 export interface User {
   uid: string;
   email: string | null;
@@ -27,8 +30,8 @@ export interface GreenAfricaUser {
   totalPoints: number;
   referralCode: string;
   referralPoints: number;
-  createdAt: any;
-  updatedAt: any;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 export interface Transaction {
@@ -37,11 +40,11 @@ export interface Transaction {
   type: 'earned' | 'redeemed' | 'referral';
   amount: number;
   description: string;
-  date: any;
+  date: Timestamp;
   location?: string;
   phone?: string;
   referral?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface Referral {
@@ -50,7 +53,7 @@ export interface Referral {
   referredUid: string;
   referralCode: string;
   pointsAwarded: number;
-  createdAt: any;
+  createdAt: Timestamp;
   status: 'pending' | 'completed';
 }
 
@@ -62,12 +65,12 @@ export interface RedemptionRequest {
   points: number;
   phone: string;
   status: 'pending' | 'completed' | 'failed';
-  createdAt: any;
-  completedAt?: any;
+  createdAt: Timestamp;
+  completedAt?: Timestamp;
   transactionId?: string;
 }
 
 export interface PhoneVerificationState {
-  confirmationResult: any;
+  confirmationResult: ConfirmationResult;
   phoneNumber: string;
 }
