@@ -1,6 +1,6 @@
 import { adminDb } from './admin';
 import { FieldValue } from 'firebase-admin/firestore';
-import { GreenAfricaUser } from '@/types';
+import { GreenAfricaUser, Transaction, RedemptionRequest } from '@/types';
 
 /**
  * Get user by referral code using Firebase Admin SDK
@@ -77,7 +77,7 @@ export async function getUserByGreenIdAdmin(greenId: string): Promise<GreenAfric
 /**
  * Update user data using Firebase Admin SDK
  */
-export async function updateUserAdmin(uid: string, updates: Partial<GreenAfricaUser>): Promise<void> {
+export async function updateUserAdmin(uid: string, updates: Record<string, unknown>): Promise<void> {
   try {
     // Filter out undefined values and add server timestamp
     const cleanUpdates: Record<string, unknown> = {
@@ -86,7 +86,7 @@ export async function updateUserAdmin(uid: string, updates: Partial<GreenAfricaU
 
     // Only add fields that are not undefined
     Object.keys(updates).forEach(key => {
-      const value = updates[key as keyof GreenAfricaUser];
+      const value = updates[key];
       if (value !== undefined && value !== null) {
         cleanUpdates[key] = value;
       }
@@ -124,4 +124,85 @@ export function createBatchAdmin() {
  */
 export function getAdminCollectionRef(collectionName: string) {
   return adminDb.collection(collectionName);
+}
+
+/**
+ * Create a redemption request using Firebase Admin SDK
+ */
+export async function createRedemptionRequestAdmin(
+  redemption: Omit<RedemptionRequest, 'id' | 'createdAt'>
+): Promise<string> {
+  try {
+    const redemptionData = {
+      ...redemption,
+      createdAt: FieldValue.serverTimestamp(),
+    };
+
+    const docRef = await adminDb.collection('redemptions').add(redemptionData);
+    return docRef.id;
+  } catch (error) {
+    console.error('Error creating redemption request (Admin):', error);
+    throw error;
+  }
+}
+
+/**
+ * Update redemption status using Firebase Admin SDK
+ */
+export async function updateRedemptionStatusAdmin(
+  redemptionId: string,
+  status: RedemptionRequest['status'],
+  updates?: {
+    transactionId?: string;
+    failureReason?: string;
+    apiResponse?: RedemptionRequest['apiResponse'];
+  }
+): Promise<void> {
+  try {
+    const updateData: Record<string, unknown> = {
+      status,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    if (status === 'completed') {
+      updateData.completedAt = FieldValue.serverTimestamp();
+    }
+
+    if (updates?.transactionId) {
+      updateData.transactionId = updates.transactionId;
+    }
+
+    if (updates?.failureReason) {
+      updateData.failureReason = updates.failureReason;
+    }
+
+    if (updates?.apiResponse) {
+      updateData.apiResponse = updates.apiResponse;
+    }
+
+    await adminDb.collection('redemptions').doc(redemptionId).update(updateData);
+  } catch (error) {
+    console.error('Error updating redemption status (Admin):', error);
+    throw error;
+  }
+}
+
+/**
+ * Add transaction using Firebase Admin SDK
+ */
+export async function addTransactionAdmin(
+  transaction: Omit<Transaction, 'id' | 'date'>
+): Promise<string> {
+  try {
+    const transactionData = {
+      ...transaction,
+      date: FieldValue.serverTimestamp(),
+    };
+
+    const docRef = await adminDb.collection('transactions').add(transactionData);
+    return docRef.id;
+  } catch (error) {
+    console.error('Error adding transaction (Admin):', error);
+    throw error;
+  }
 }

@@ -64,10 +64,22 @@ export interface RedemptionRequest {
   amount: string;
   points: number;
   phone: string;
-  status: 'pending' | 'completed' | 'failed';
+  network?: string;
+  detectedNetwork?: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
   createdAt: Timestamp;
   completedAt?: Timestamp;
   transactionId?: string;
+  apiResponse?: {
+    reference?: string;
+    responseCode?: number;
+    responseMsg?: string;
+    status?: string;
+    recipient?: string;
+    provider?: string;
+    errorMessage?: string;
+  };
+  failureReason?: string;
 }
 
 export interface PhoneVerificationState {

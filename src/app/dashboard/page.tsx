@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserTransactions, useAddPoints } from '@/hooks/useFirestore';
 import { useReferrals } from '@/hooks/useReferrals';
 import ReferralCard from '@/components/shared/ReferralCard';
+import { redeemAirtime } from '@/actions/airtime';
 
 // Type definitions
 interface RedeemData {
@@ -104,6 +105,7 @@ function DashboardContent() {
   const [showRedeem, setShowRedeem] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showRedeemSuccess, setShowRedeemSuccess] = useState(false);
+  const [showRedeemError, setShowRedeemError] = useState(false);
   const [showProfileSuccess, setShowProfileSuccess] = useState(false);
   const [showPointsEarned, setShowPointsEarned] = useState(false);
   const [earnedPoints, setEarnedPoints] = useState(0);
@@ -115,6 +117,9 @@ function DashboardContent() {
     amount: '',
     points: 0
   });
+  const [redemptionResult, setRedemptionResult] = useState<any>(null);
+  const [redemptionError, setRedemptionError] = useState('');
+  const [isRedeeming, setIsRedeeming] = useState(false);
   const [profileData, setProfileData] = useState({
     name: '',
     phone: '',
@@ -191,13 +196,41 @@ function DashboardContent() {
     setShowWelcome(false);
   };
 
-  const handleRedeemSubmit = (step: number, data: Partial<RedeemData>) => {
-    if (step === 3) {
-      // Final submission
-      setShowRedeem(false);
-      setShowRedeemSuccess(true);
-      setRedeemStep(1);
-      setRedeemData({ type: '', phone: '', amount: '', points: 0 });
+  const handleRedeemSubmit = async (step: number, data: Partial<RedeemData>) => {
+    if (step === 3 && data.type === 'airtime' && user?.uid) {
+      // Final submission - process airtime redemption
+      setIsRedeeming(true);
+      try {
+        const result = await redeemAirtime({
+          userId: user.uid,
+          phone: data.phone || redeemData.phone,
+          amount: parseInt(data.amount || redeemData.amount),
+          network: (data as any).network || (data as any).detectedNetwork
+        });
+
+        if (result.success) {
+          setRedemptionResult(result);
+          setShowRedeem(false);
+          setShowRedeemSuccess(true);
+          setRedeemStep(1);
+          setRedeemData({ type: '', phone: '', amount: '', points: 0 });
+        } else {
+          setRedemptionError(result.error || result.message);
+          setShowRedeem(false);
+          setShowRedeemError(true);
+          setRedeemStep(1);
+          setRedeemData({ type: '', phone: '', amount: '', points: 0 });
+        }
+      } catch (error) {
+        console.error('Airtime redemption error:', error);
+        setRedemptionError(error instanceof Error ? error.message : 'Unknown error occurred');
+        setShowRedeem(false);
+        setShowRedeemError(true);
+        setRedeemStep(1);
+        setRedeemData({ type: '', phone: '', amount: '', points: 0 });
+      } finally {
+        setIsRedeeming(false);
+      }
     } else {
       setRedeemStep(step + 1);
       setRedeemData({ ...redeemData, ...data });
@@ -375,6 +408,7 @@ function DashboardContent() {
         data={redeemData}
         userPoints={greenAfricaUser?.totalPoints || 0}
         onSubmit={handleRedeemSubmit}
+        isRedeeming={isRedeeming}
       />
       
       <ProfileModal 
@@ -388,8 +422,18 @@ function DashboardContent() {
         isOpen={showRedeemSuccess}
         onClose={() => setShowRedeemSuccess(false)}
         title="Redemption Successful!"
-        message="Your airtime/data has been sent successfully."
-        details={`Transaction ID: TXN-${Date.now()}`}
+        message="Your airtime has been sent successfully."
+        details={redemptionResult?.transactionId ? `Transaction ID: ${redemptionResult.transactionId}` : undefined}
+      />
+
+      <ErrorModal 
+        isOpen={showRedeemError}
+        onClose={() => {
+          setShowRedeemError(false);
+          setRedemptionError('');
+        }}
+        title="Redemption Failed"
+        message={redemptionError}
       />
       
       <SuccessModal 
@@ -516,7 +560,8 @@ function RedeemPointsModal({
   onClose, 
   step, 
   userPoints,
-  onSubmit 
+  onSubmit,
+  isRedeeming = false
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
@@ -524,27 +569,69 @@ function RedeemPointsModal({
   data: RedeemData;
   userPoints: number;
   onSubmit: (step: number, data: Partial<RedeemData>) => void;
+  isRedeeming?: boolean;
 }) {
-  const [formData, setFormData] = useState({ type: '', phone: '', amount: '', points: 0 });
+  const [formData, setFormData] = useState({ type: '', phone: '', amount: '', points: 0, network: '', detectedNetwork: '' });
+  const [customAmount, setCustomAmount] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [amountError, setAmountError] = useState('');
+
+  // Import phone utilities (we'll assume they're available globally or import them)
+  const detectNetwork = (phone: string) => {
+    // This is a simplified version - in real implementation, import from utils
+    const cleaned = phone.replace(/\D/g, '');
+    const formatted = cleaned.startsWith('234') && cleaned.length === 13 
+      ? '0' + cleaned.substring(3) 
+      : cleaned.length === 10 && !cleaned.startsWith('0') 
+      ? '0' + cleaned 
+      : cleaned;
+
+    if (formatted.length !== 11 || !formatted.startsWith('0')) return null;
+
+    const prefix = formatted.substring(0, 4);
+    const networks = {
+      'MTN': ['0703', '0706', '0803', '0806', '0810', '0813', '0814', '0816', '0903', '0906', '0913', '0916'],
+      'GLO': ['0705', '0805', '0807', '0811', '0815', '0905', '0915'],
+      'AIRTEL': ['0701', '0708', '0802', '0808', '0812', '0901', '0902', '0904', '0907', '0912'],
+      '9MOBILE': ['0809', '0817', '0818', '0908', '0909'],
+      'NTEL': ['0804']
+    };
+
+    for (const [network, prefixes] of Object.entries(networks)) {
+      if (prefixes.includes(prefix)) return network;
+    }
+    return null;
+  };
 
   const rewardTypes = [
-    { id: 'airtime', name: 'Airtime', icon: '📞', minPoints: 50 },
-    { id: 'data', name: 'Data', icon: '📱', minPoints: 75 }
+    { id: 'airtime', name: 'Airtime', icon: '📞', minPoints: 50, desc: '1:1 conversion (100 points = ₦100)' },
+    { id: 'data', name: 'Data', icon: '📱', minPoints: 75, desc: 'Coming soon' }
   ];
 
-  const amountOptions = {
-    airtime: [
-      { amount: '₦100', points: 50 },
-      { amount: '₦200', points: 100 },
-      { amount: '₦500', points: 250 },
-      { amount: '₦1000', points: 500 }
-    ],
-    data: [
-      { amount: '500MB', points: 75 },
-      { amount: '1GB', points: 150 },
-      { amount: '2GB', points: 280 },
-      { amount: '5GB', points: 650 }
-    ]
+  const quickAmounts = [50, 100, 200, 500, 1000, 2000];
+
+  const handlePhoneChange = (phone: string) => {
+    setFormData(prev => ({ ...prev, phone }));
+    setPhoneError('');
+    
+    if (phone.length >= 10) {
+      const detected = detectNetwork(phone);
+      setFormData(prev => ({ 
+        ...prev, 
+        detectedNetwork: detected || '',
+        network: detected || prev.network 
+      }));
+    }
+  };
+
+  const handleAmountChange = (value: string | number) => {
+    const amount = typeof value === 'string' ? parseInt(value) : value;
+    if (amount < 50 || amount > 5000) {
+      setAmountError('Amount must be between ₦50 and ₦5000');
+    } else {
+      setAmountError('');
+    }
+    setFormData(prev => ({ ...prev, amount: amount.toString(), points: amount }));
   };
 
   const handleSubmit = (stepData: Partial<RedeemData>) => {
@@ -580,42 +667,85 @@ function RedeemPointsModal({
         </div>
       )}
 
-      {step === 2 && (
+      {step === 2 && formData.type === 'airtime' && (
         <div className="space-y-6">
           <div>
             <label className="form-label">Phone Number</label>
             <input
               type="tel"
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="+234 800 000 0000"
-              className="input-field"
+              onChange={(e) => handlePhoneChange(e.target.value)}
+              placeholder="08012345678"
+              className={`input-field ${phoneError ? 'border-red-300 focus:border-red-500' : ''}`}
               required
             />
+            {phoneError && <p className="text-red-500 text-sm mt-1">{phoneError}</p>}
+            
+            {formData.detectedNetwork && (
+              <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                <span className="text-green-700">✓ Detected network: {formData.detectedNetwork}</span>
+              </div>
+            )}
           </div>
+
+          {(!formData.detectedNetwork || formData.phone.length < 10) && (
+            <div>
+              <label className="form-label">Select Network (if detection fails)</label>
+              <select
+                value={formData.network}
+                onChange={(e) => setFormData(prev => ({ ...prev, network: e.target.value }))}
+                className="input-field"
+              >
+                <option value="">Choose network...</option>
+                <option value="MTN">MTN</option>
+                <option value="GLO">GLO</option>
+                <option value="AIRTEL">AIRTEL</option>
+                <option value="9MOBILE">9MOBILE</option>
+                <option value="NTEL">NTEL</option>
+              </select>
+            </div>
+          )}
           
           <div>
-            <label className="form-label">Select Amount</label>
-            <div className="grid grid-cols-2 gap-3">
-              {amountOptions[formData.type as keyof typeof amountOptions]?.map((option) => (
+            <label className="form-label">Select Amount (₦50 - ₦5000)</label>
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {quickAmounts.map((amount) => (
                 <button
-                  key={option.amount}
-                  onClick={() => {
-                    setFormData({ ...formData, amount: option.amount, points: option.points });
-                  }}
-                  className={`p-4 border-2 rounded-lg transition-colors duration-200 ${
-                    userPoints < option.points
+                  key={amount}
+                  onClick={() => handleAmountChange(amount)}
+                  className={`p-3 border-2 rounded-lg transition-colors duration-200 ${
+                    userPoints < amount
                       ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-50'
-                      : formData.amount === option.amount
+                      : parseInt(formData.amount) === amount
                       ? 'border-primary-400 bg-primary-50'
                       : 'border-gray-200 hover:border-primary-400'
                   }`}
-                  disabled={userPoints < option.points}
+                  disabled={userPoints < amount}
                 >
-                  <div className="font-semibold">{option.amount}</div>
-                  <div className="text-sm text-gray-600">{option.points} points</div>
+                  <div className="font-semibold">₦{amount}</div>
+                  <div className="text-xs text-gray-600">{amount} pts</div>
                 </button>
               ))}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Custom Amount</label>
+              <input
+                type="number"
+                min="50"
+                max="5000"
+                value={customAmount}
+                onChange={(e) => {
+                  setCustomAmount(e.target.value);
+                  if (e.target.value) {
+                    handleAmountChange(e.target.value);
+                  }
+                }}
+                placeholder="Enter amount (50-5000)"
+                className={`input-field ${amountError ? 'border-red-300 focus:border-red-500' : ''}`}
+              />
+              {amountError && <p className="text-red-500 text-sm mt-1">{amountError}</p>}
+              <p className="text-sm text-gray-500 mt-1">1:1 conversion - {formData.amount ? parseInt(formData.amount) : 0} points required</p>
             </div>
           </div>
 
@@ -625,12 +755,23 @@ function RedeemPointsModal({
             </button>
             <button 
               onClick={() => handleSubmit({})}
-              disabled={!formData.phone || !formData.amount}
+              disabled={!formData.phone || !formData.amount || (!formData.detectedNetwork && !formData.network) || !!amountError || !!phoneError}
               className="btn-primary flex-1"
             >
               Continue
             </button>
           </div>
+        </div>
+      )}
+
+      {step === 2 && formData.type === 'data' && (
+        <div className="text-center py-12">
+          <div className="text-6xl mb-4">🚧</div>
+          <h4 className="font-semibold text-gray-900 mb-2">Data Redemption Coming Soon</h4>
+          <p className="text-gray-500 mb-6">Data redemption feature is currently under development.</p>
+          <button onClick={() => onSubmit(0, {})} className="btn-secondary">
+            Back to Selection
+          </button>
         </div>
       )}
 
@@ -656,12 +797,37 @@ function RedeemPointsModal({
             </div>
           </div>
 
+          {isRedeeming && (
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-6">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                <p className="text-blue-700 font-medium">Processing your redemption...</p>
+              </div>
+              <p className="text-blue-600 text-sm mt-1">Please wait while we process your airtime request.</p>
+            </div>
+          )}
+
           <div className="flex gap-4">
-            <button onClick={() => onSubmit(1, {})} className="btn-secondary flex-1">
+            <button 
+              onClick={() => onSubmit(1, {})} 
+              className="btn-secondary flex-1"
+              disabled={isRedeeming}
+            >
               Back
             </button>
-            <button onClick={() => handleSubmit({})} className="btn-primary flex-1">
-              Confirm Redemption
+            <button 
+              onClick={() => handleSubmit({})} 
+              className="btn-primary flex-1 flex items-center justify-center gap-2"
+              disabled={isRedeeming}
+            >
+              {isRedeeming ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Processing...
+                </>
+              ) : (
+                'Confirm Redemption'
+              )}
             </button>
           </div>
         </div>
@@ -803,6 +969,33 @@ function SuccessModal({ isOpen, onClose, title, message, details }: {
         )}
         <button onClick={onClose} className="btn-primary">
           Continue
+        </button>
+      </div>
+    </BaseModal>
+  );
+}
+
+// Error Modal Component
+function ErrorModal({ isOpen, onClose, title, message }: {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  message: string;
+}) {
+  return (
+    <BaseModal isOpen={isOpen} onClose={onClose} showCloseButton={false}>
+      <div className="text-center">
+        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.268 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+        </div>
+        <h3 className="font-display font-semibold text-xl text-gray-900 mb-2">
+          {title}
+        </h3>
+        <p className="text-gray-600 mb-6">{message}</p>
+        <button onClick={onClose} className="btn-primary">
+          Try Again
         </button>
       </div>
     </BaseModal>
