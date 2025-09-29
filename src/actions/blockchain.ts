@@ -1,6 +1,6 @@
 'use server';
 
-import { registerUserOnBlockchain, checkUserExists, registerRVMOnBlockchain } from '@/lib/hedera/client';
+import { registerUserOnBlockchain, checkUserExists, registerRVMOnBlockchain } from '@/lib/ethereum/client';
 import { getUserByReferralCodeAdmin } from '@/lib/firebase/admin-firestore';
 
 export interface BlockchainRegistrationResult {
@@ -58,11 +58,11 @@ export async function registerUserOnHedera(
           userExists: true,
         };
       } else {
-        console.log(`User ${greenId} successfully registered on blockchain. TX: ${result.transactionId}`);
+        console.log(`User ${greenId} successfully registered on blockchain. TX: ${result.transactionHash}`);
         return {
           success: true,
           message: 'User successfully registered on blockchain',
-          transactionId: result.transactionId,
+          transactionId: result.transactionHash,
         };
       }
     } else {
@@ -124,7 +124,7 @@ export async function registerRVMOnHedera(
     );
 
     if (result.success) {
-      console.log(`RVM ${rvmId} successfully registered on blockchain. TX: ${result.transactionId}`);
+      console.log(`RVM ${rvmId} successfully registered on blockchain. TX: ${result.transactionHash}`);
       return {
         success: true,
         message: 'RVM successfully registered on blockchain',

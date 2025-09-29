@@ -7,7 +7,8 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "register-rvm": "tsx scripts/register-rvm-ifitness.ts"
+    "register-rvm": "tsx scripts/register-rvm-ifitness.ts",
+    "test-hybrid": "tsx scripts/test-hybrid-implementation.ts"
   },
   "dependencies": {
     "@hashgraph/sdk": "^2.73.2",
