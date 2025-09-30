@@ -2,7 +2,7 @@
 
 import { mintGreenPoints, burnGreenPoints, getTokenBalance } from '@/lib/hedera/token-client';
 import { recordDepositOnBlockchain, redeemPointsOnBlockchain, getUserFromBlockchain } from '@/lib/ethereum/client';
-import { getUser } from '@/lib/firebase/firestore';
+import { getUserAdmin } from '@/lib/firebase/admin-firestore';
 
 export interface GreenPointsResult {
   success: boolean;
@@ -29,7 +29,7 @@ export async function mintPointsForUser(
     }
 
     // Get user info from Firebase to get their EVM address and Green ID
-    const user = await getUser(uid);
+    const user = await getUserAdmin(uid);
     if (!user) {
       return {
         success: false,
@@ -105,7 +105,7 @@ export async function burnPointsForUser(
     }
 
     // Get user info from Firebase to get their EVM address and Green ID
-    const user = await getUser(uid);
+    const user = await getUserAdmin(uid);
     if (!user) {
       return {
         success: false,
@@ -187,7 +187,7 @@ export async function getUserPointsFromBlockchain(uid: string): Promise<GreenPoi
     }
 
     // Get user info from Firebase to get their EVM address
-    const user = await getUser(uid);
+    const user = await getUserAdmin(uid);
     if (!user) {
       return {
         success: false,
@@ -268,7 +268,7 @@ export async function getUserPointsComparison(uid: string): Promise<{
   contractPoints: { success: boolean; points?: number; error?: string; };
 }> {
   try {
-    const user = await getUser(uid);
+    const user = await getUserAdmin(uid);
     if (!user) {
       return {
         tokenBalance: { success: false, error: 'User not found' },
