@@ -286,13 +286,13 @@ export async function recordDepositOnBlockchain(
     try {
       // Convert parameters to the format expected by the contract
       const recyclerIdBytes32 = stringToBytes32(recyclerId);
-      const rvmIdBytes32 = stringToBytes32(rvmId);
+      // const rvmIdBytes32 = stringToBytes32(rvmId);
       const sessionIdBytes32 = stringToBytes32(sessionId);
 
       // Call the recordDeposit function
       const tx = await contract.recordDeposit(
         recyclerIdBytes32,
-        rvmIdBytes32,
+        rvmId,
         petCount,
         pointsAwarded,
         s3URI,
