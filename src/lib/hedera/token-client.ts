@@ -248,7 +248,6 @@ export async function getTokenBalance(userAddress: string): Promise<TokenResult>
 
     const { signer } = createEthersProvider();
     const tokenContract = createTokenContract(signer);
-    console.log(`Fetching token balance for address: ${userAddress}`, await tokenContract.balanceOf(userAddress));
 
     try {
       // Get balance and decimals

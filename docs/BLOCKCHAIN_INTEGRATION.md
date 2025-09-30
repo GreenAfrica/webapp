@@ -38,7 +38,6 @@ Example: `GRN-2025-123456`
 ```
 src/
 ├── lib/
-│   ├── utils/blockchain.ts     # Bytes32 conversion utilities
 │   └── hedera/client.ts        # Hedera client and contract interaction
 ├── actions/blockchain.ts       # Server actions for blockchain operations
 └── contexts/AuthContext.tsx    # Integration with auth flow

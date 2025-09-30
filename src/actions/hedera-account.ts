@@ -135,7 +135,7 @@ export async function generateHederaAccountAction(): Promise<HederaAccountResult
         success: true,
         data: {
           accountId,
-          evmAddress,
+          evmAddress: `0x${evmAddress}`,
           encryptedPrivateKey, // Return encrypted private key for database storage
         }
       };

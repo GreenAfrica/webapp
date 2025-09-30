@@ -3,7 +3,6 @@
 import { mintGreenPoints, burnGreenPoints, getTokenBalance } from '@/lib/hedera/token-client';
 import { recordDepositOnBlockchain, redeemPointsOnBlockchain, getUserFromBlockchain } from '@/lib/ethereum/client';
 import { getUser } from '@/lib/firebase/firestore';
-import { stringToBytes32 } from '@/lib/utils/blockchain';
 
 export interface GreenPointsResult {
   success: boolean;
@@ -51,6 +50,7 @@ export async function mintPointsForUser(
     // Mint Green Points tokens
     const mintResult = await mintGreenPoints(user.evmAddress, points);
     if (!mintResult.success) {
+      console.warn('Error minting Green Points:', mintResult.error);
       return {
         success: false,
         error: `Failed to mint tokens: ${mintResult.error}`,
@@ -78,7 +78,7 @@ export async function mintPointsForUser(
       transactionHash: mintResult.transactionHash,
     };
   } catch (error) {
-    console.error('Error minting points for user:', error);
+    console.error('Error minting points for user:', error?.toString());
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to mint points for user',
