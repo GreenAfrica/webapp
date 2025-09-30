@@ -373,6 +373,79 @@ export async function getUserFromBlockchain(greenId: string) {
 }
 
 /**
+ * Redeem points on the blockchain using Ethers.js
+ */
+export async function redeemPointsOnBlockchain(
+  recyclerId: string,
+  points: number,
+  rewardType: string,
+  destination: string,
+  redemptionId: string
+): Promise<BlockchainResult> {
+  try {
+    const env = getServerEnv();
+    
+    if (!env.GREEN_AFRICA_CONTRACT_ADDRESS) {
+      console.warn('GREEN_AFRICA_CONTRACT_ADDRESS not configured - skipping points redemption');
+      return {
+        success: true,
+      };
+    }
+
+    const { signer } = createEthersProvider();
+    const contract = createContractInstance(signer);
+
+    try {
+      // Convert parameters to the format expected by the contract
+      const recyclerIdBytes32 = stringToBytes32(recyclerId);
+      const redemptionIdBytes32 = stringToBytes32(redemptionId);
+
+      // Call the redeemPoints function
+      const tx = await contract.redeemPoints(
+        recyclerIdBytes32,
+        points,
+        rewardType,
+        destination,
+        redemptionIdBytes32,
+        {
+          gasLimit: 400000, // Set appropriate gas limit
+        }
+      );
+
+      // Wait for transaction confirmation
+      const receipt = await tx.wait();
+
+      if (receipt.status === 1) {
+        console.log(`Points redeemed on blockchain. TX: ${receipt.hash}`);
+        
+        return {
+          success: true,
+          transactionHash: receipt.hash,
+        };
+      } else {
+        throw new Error(`Transaction failed with status: ${receipt.status}`);
+      }
+    } catch (error) {
+      // Handle specific contract errors
+      if (error instanceof Error && error.message.includes('revert')) {
+        console.error('Contract reverted:', error.message);
+        return {
+          success: false,
+          error: `Contract execution failed: ${error.message}`,
+        };
+      }
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error redeeming points on blockchain:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to redeem points on blockchain',
+    };
+  }
+}
+
+/**
  * Utility function to validate contract configuration
  */
 export async function isBlockchainConfigured(): Promise<boolean> {

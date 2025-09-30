@@ -107,7 +107,25 @@ export const createUser = async (uid: string, email: string, displayName: string
 export const getUser = async (uid: string): Promise<GreenAfricaUser | null> => {
   const userDoc = await getDoc(doc(usersRef, uid));
   if (userDoc.exists()) {
-    return userDoc.data();
+    const userData = userDoc.data();
+    
+    // If user has an EVM address, get points from blockchain instead of Firebase
+    if (userData.evmAddress) {
+      try {
+        const { getTokenBalance } = await import('@/lib/hedera/token-client');
+        const balanceResult = await getTokenBalance(userData.evmAddress);
+        
+        if (balanceResult.success && balanceResult.balance) {
+          // Update totalPoints with blockchain balance
+          userData.totalPoints = Math.floor(parseFloat(balanceResult.balance));
+        }
+      } catch (error) {
+        console.error('Failed to get blockchain balance for user:', error);
+        // Fall back to Firebase totalPoints if blockchain read fails
+      }
+    }
+    
+    return userData;
   }
   return null;
 };
@@ -149,23 +167,28 @@ export const getUserByReferralCode = async (referralCode: string): Promise<Green
 };
 
 // Transaction Functions
-export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'date'>): Promise<string> => {
+export const addTransaction = async (
+  transaction: Omit<Transaction, 'id' | 'date'>, 
+  updateTotalPoints: boolean = true
+): Promise<string> => {
   const docRef = await addDoc(transactionsRef, {
     ...transaction,
     date: serverTimestamp(),
   });
   
-  // Update user's total points
-  if (transaction.type === 'earned' || transaction.type === 'referral') {
-    await updateDoc(doc(usersRef, transaction.userId), {
-      totalPoints: increment(transaction.amount),
-      updatedAt: serverTimestamp(),
-    });
-  } else if (transaction.type === 'redeemed') {
-    await updateDoc(doc(usersRef, transaction.userId), {
-      totalPoints: increment(-Math.abs(transaction.amount)),
-      updatedAt: serverTimestamp(),
-    });
+  // Update user's total points only if requested (for backward compatibility and blockchain integration)
+  if (updateTotalPoints) {
+    if (transaction.type === 'earned' || transaction.type === 'referral') {
+      await updateDoc(doc(usersRef, transaction.userId), {
+        totalPoints: increment(transaction.amount),
+        updatedAt: serverTimestamp(),
+      });
+    } else if (transaction.type === 'redeemed') {
+      await updateDoc(doc(usersRef, transaction.userId), {
+        totalPoints: increment(-Math.abs(transaction.amount)),
+        updatedAt: serverTimestamp(),
+      });
+    }
   }
   
   return docRef.id;
@@ -262,14 +285,51 @@ export const createRedemptionRequest = async (redemption: Omit<RedemptionRequest
     createdAt: serverTimestamp(),
   });
 
-  // Deduct points from user (create negative transaction)
-  await addTransaction({
-    userId: redemption.userId,
-    type: 'redeemed',
-    amount: -redemption.points,
-    description: `${redemption.amount} ${redemption.type}`,
-    phone: redemption.phone,
-  });
+  // Import the new server action for burning tokens
+  const { burnPointsForUser } = await import('@/actions/greenpoints');
+
+  try {
+    // Burn Green Points tokens and call contract redeem
+    const burnResult = await burnPointsForUser(
+      redemption.userId,
+      redemption.points,
+      redemption.type, // rewardType
+      redemption.phone || '', // destination
+      docRef.id // redemptionId (use Firestore document ID)
+    );
+
+    if (!burnResult.success) {
+      console.error('Failed to burn Green Points for redemption:', burnResult.error);
+      // Update redemption status to failed
+      await updateDoc(doc(redemptionsRef, docRef.id), {
+        status: 'failed',
+        error: burnResult.error,
+      });
+      throw new Error(`Failed to process redemption: ${burnResult.error}`);
+    }
+
+    // Create Firebase transaction record for audit purposes, but don't update totalPoints
+    await addTransaction({
+      userId: redemption.userId,
+      type: 'redeemed',
+      amount: -redemption.points,
+      description: `${redemption.amount} ${redemption.type}`,
+      phone: redemption.phone,
+      metadata: {
+        transactionHash: burnResult.transactionHash,
+        redemptionId: docRef.id,
+      },
+    }, false); // Don't update totalPoints since tokens were burned
+
+  } catch (error) {
+    console.error('Error processing redemption:', error);
+    // Update redemption status to failed if not already done
+    await updateDoc(doc(redemptionsRef, docRef.id), {
+      status: 'failed',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    throw error;
+  }
 
   return docRef.id;
 };
@@ -314,13 +374,32 @@ export const subscribeToUser = (uid: string, callback: (user: GreenAfricaUser | 
 };
 
 export const addPointsToUser = async (uid: string, points: number, description: string, metadata?: Record<string, unknown>): Promise<void> => {
+  // Import the new server action
+  const { mintPointsForUser } = await import('@/actions/greenpoints');
+  
+  // Generate session ID and add it to metadata
+  const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const updatedMetadata = {
+    ...metadata,
+    sessionId,
+  };
+
+  // Mint Green Points tokens instead of updating Firebase
+  const mintResult = await mintPointsForUser(uid, points, sessionId);
+  
+  if (!mintResult.success) {
+    console.error('Failed to mint Green Points:', mintResult.error);
+    throw new Error(`Failed to mint Green Points: ${mintResult.error}`);
+  }
+
+  // Still create Firebase transaction record for audit purposes, but don't update totalPoints
   await addTransaction({
     userId: uid,
     type: 'earned',
     amount: points,
     description,
-    metadata,
-  });
+    metadata: updatedMetadata,
+  }, false); // Pass false to skip totalPoints update
 };
 
 export const deleteUser = async (uid: string): Promise<void> => {
