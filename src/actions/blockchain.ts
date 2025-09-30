@@ -128,7 +128,7 @@ export async function registerRVMOnHedera(
       return {
         success: true,
         message: 'RVM successfully registered on blockchain',
-        transactionId: result.transactionId,
+        transactionId: result.transactionHash,
       };
     } else {
       console.error(`Failed to register RVM ${rvmId} on blockchain:`, result.error);

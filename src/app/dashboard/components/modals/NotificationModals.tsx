@@ -83,10 +83,43 @@ interface PointsEarnedModalProps {
   onClose: () => void;
   points: number;
   rewardCode: string;
-  addingPoints: boolean;
+  isLoading?: boolean;
 }
 
-export function PointsEarnedModal({ isOpen, onClose, points, rewardCode, addingPoints }: PointsEarnedModalProps) {
+export function PointsEarnedModal({ isOpen, onClose, points, rewardCode, isLoading = false }: PointsEarnedModalProps) {
+  if (isLoading) {
+    return (
+      <BaseModal isOpen={isOpen} onClose={() => {}} showCloseButton={false} size="lg">
+        <div className="text-center">
+          <div className="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          </div>
+          <h3 className="font-display font-bold text-2xl text-primary-800 mb-2">
+            Processing Your Reward
+          </h3>
+          <p className="text-gray-600 mb-6 text-lg">
+            Minting <span className="font-bold text-primary-600">{points} Green Points</span> and recording on blockchain...
+          </p>
+          
+          <div className="bg-primary-50 p-4 rounded-lg mb-8">
+            <p className="text-sm text-gray-600 mb-1">Reward Code</p>
+            <p className="font-mono text-primary-700 font-semibold">{rewardCode}</p>
+          </div>
+          
+          <div className="text-center mb-6">
+            <p className="text-sm text-gray-500">
+              Please wait while we process your reward...
+            </p>
+          </div>
+
+          <div className="flex justify-center">
+            <div className="animate-pulse bg-gray-200 h-10 w-48 rounded-lg"></div>
+          </div>
+        </div>
+      </BaseModal>
+    );
+  }
+
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} showCloseButton={false} size="lg">
       <div className="text-center">
@@ -97,7 +130,7 @@ export function PointsEarnedModal({ isOpen, onClose, points, rewardCode, addingP
           Congratulations!
         </h3>
         <p className="text-gray-600 mb-6 text-lg">
-          You have earned <span className="font-bold text-primary-600">{points} points</span>
+          You have earned <span className="font-bold text-primary-600">{points} Green Points</span>
         </p>
         
         <div className="bg-primary-50 p-4 rounded-lg mb-8">
@@ -107,12 +140,12 @@ export function PointsEarnedModal({ isOpen, onClose, points, rewardCode, addingP
         
         <div className="text-center mb-6">
           <p className="text-sm text-gray-500">
-            Your points have been added to your account and will appear in your recent activities.
+            Your Green Points have been minted on the blockchain and added to your account.
           </p>
         </div>
 
-        <button onClick={onClose} className="btn-primary" disabled={addingPoints}>
-          {addingPoints ? 'Adding Points...' : 'Continue to Dashboard'}
+        <button onClick={onClose} className="btn-primary">
+          Continue to Dashboard
         </button>
       </div>
     </BaseModal>

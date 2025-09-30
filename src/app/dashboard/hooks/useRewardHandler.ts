@@ -1,22 +1,30 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useAddPoints } from '@/hooks/useFirestore';
+import { mintPointsForUser } from '@/actions/greenpoints';
 
 export function useRewardHandler(
-  onShowPointsEarned: (points: number, code: string) => void
+  onShowPointsEarned: (points: number, code: string, isLoading?: boolean) => void
 ) {
   const { user, greenAfricaUser } = useAuth();
   const { addPoints } = useAddPoints();
   const searchParams = useSearchParams();
   const processedRewardRef = useRef<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Handle query parameters for point rewards
   useEffect(() => {
     const handlePointReward = async () => {
       if (!user?.uid || !greenAfricaUser) return;
+
+      // Prevent concurrent processing
+      if (isProcessing) {
+        console.log('Already processing a reward, skipping...');
+        return;
+      }
 
       const code = searchParams.get('code');
       const pointValue = searchParams.get('points') || searchParams.get('point');
@@ -42,14 +50,29 @@ export function useRewardHandler(
 
           // Mark this reward as being processed BEFORE making the API call
           processedRewardRef.current = rewardIdentifier;
+          setIsProcessing(true);
 
           // Clear URL parameters immediately to prevent re-processing
           const newUrl = window.location.pathname;
           window.history.replaceState({}, document.title, newUrl);
 
-          console.log('Adding points to user:', { uid: user.uid, points, code });
+          // Show modal immediately with loading state
+          onShowPointsEarned(points, code, true);
 
-          // Add points to user
+          try {
+            // First, try to mint Green Points on blockchain
+            const mintResult = await mintPointsForUser(user.uid, points);
+            
+            if (mintResult.success) {
+              console.log('Blockchain minting successful:', mintResult.message);
+            } else {
+              console.warn('Blockchain minting failed, proceeding with Firestore update:', mintResult.error);
+            }
+          } catch (blockchainError) {
+            console.warn('Blockchain operation error, proceeding with Firestore update:', blockchainError);
+          }
+
+          // Always add points to Firestore for consistency
           await addPoints(
             user.uid,
             points,
@@ -57,21 +80,23 @@ export function useRewardHandler(
             { rewardCode: code }
           );
 
-          console.log('Points added successfully');
+          console.log('Points processing completed');
 
-          // Show success modal
-          onShowPointsEarned(points, code);
+          // Show success modal (loading = false)
+          onShowPointsEarned(points, code, false);
 
         } catch (error) {
-          console.error('Error adding points:', error);
+          console.error('Error processing reward:', error);
           // Reset the processed ref on error so user can retry
           processedRewardRef.current = null;
+        } finally {
+          setIsProcessing(false);
         }
       }
     };
 
     handlePointReward();
-  }, [user?.uid, greenAfricaUser, searchParams, addPoints, onShowPointsEarned]);
+  }, [user?.uid, greenAfricaUser, searchParams, addPoints, isProcessing]);
 
   return null; // This hook only handles side effects
 }

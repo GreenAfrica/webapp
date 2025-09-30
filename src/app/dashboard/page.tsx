@@ -21,7 +21,7 @@ import {
 function RewardHandler({ 
   onShowPointsEarned 
 }: { 
-  onShowPointsEarned: (points: number, code: string) => void 
+  onShowPointsEarned: (points: number, code: string, isLoading?: boolean) => void 
 }) {
   useRewardHandler(onShowPointsEarned);
   return null; // This component only handles side effects
@@ -39,6 +39,7 @@ function DashboardContent() {
     earnedPoints,
     rewardCode,
     profileData,
+    rewardProcessing,
     
     // Auth data
     user,
@@ -192,7 +193,7 @@ function DashboardContent() {
         onClose={() => setShowPointsEarned(false)}
         points={earnedPoints}
         rewardCode={rewardCode}
-        addingPoints={addingPoints}
+        isLoading={rewardProcessing}
       />
 
       {/* RewardHandler wrapped in Suspense */}

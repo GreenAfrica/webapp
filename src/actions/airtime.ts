@@ -35,6 +35,14 @@ export interface AirtimeRedemptionResult {
   };
 }
 
+interface TeqillaAPIResponse {
+  reference?: string;
+  responseCode?: number;
+  responseMsg?: string;
+  status?: string;
+  recipient?: string;
+}
+
 /**
  * Generate unique reference for Teqilla API
  */
@@ -91,7 +99,7 @@ async function callTeqillaAPI(
   userMetadata: { uid: string; name: string }
 ): Promise<{
   success: boolean;
-  data?: any;
+  data?: TeqillaAPIResponse;
   error?: string;
 }> {
   const apiKey = process.env.TERMII_API_KEY;
@@ -168,7 +176,7 @@ export async function redeemAirtime(
         success: false,
         message: 'Unable to detect network. Please select network manually.',
         error: 'Network detection failed',
-        detectedNetwork: detectedNetwork?.name,
+        detectedNetwork: undefined,
       };
     }
 

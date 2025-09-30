@@ -13,6 +13,7 @@ export function useDashboard() {
   const [showPointsEarned, setShowPointsEarned] = useState(false);
   const [earnedPoints, setEarnedPoints] = useState(0);
   const [rewardCode, setRewardCode] = useState('');
+  const [rewardProcessing, setRewardProcessing] = useState(false);
   const [profileData, setProfileData] = useState({
     name: '',
     phone: '',
@@ -56,10 +57,11 @@ export function useDashboard() {
     setShowWelcome(false);
   };
 
-  const handleShowPointsEarned = (points: number, code: string) => {
+  const handleShowPointsEarned = (points: number, code: string, isLoading?: boolean) => {
     setEarnedPoints(points);
     setRewardCode(code);
     setShowPointsEarned(true);
+    setRewardProcessing(isLoading ?? false);
   };
 
   const handleProfileSubmit = (data: { name: string; phone: string; email: string }) => {
@@ -83,6 +85,7 @@ export function useDashboard() {
     earnedPoints,
     rewardCode,
     profileData,
+    rewardProcessing,
     
     // Auth data
     user,
