@@ -1,6 +1,7 @@
 'use server';
 
-import { mintGreenPoints, burnGreenPoints, getTokenBalance } from '@/lib/hedera/token-client';
+import { mintGreenPoints, burnGreenPoints, getTokenBalance } from '@/lib/ethereum/token-client';
+import { mintGreenPointsHedera, burnGreenPointsHedera, getUserAccountId } from '@/lib/hedera/token-service';
 import { recordDepositOnBlockchain, redeemPointsOnBlockchain, getUserFromBlockchain } from '@/lib/ethereum/client';
 import { getUserAdmin } from '@/lib/firebase/admin-firestore';
 
@@ -47,13 +48,51 @@ export async function mintPointsForUser(
     // Generate session ID if not provided
     const finalSessionId = sessionId || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Mint Green Points tokens
-    const mintResult = await mintGreenPoints(user.evmAddress, points);
-    if (!mintResult.success) {
-      console.warn('Error minting Green Points:', mintResult.error);
+    // Get user's Hedera Account ID for token operations
+    const userAccountId = await getUserAccountId(uid);
+    if (!userAccountId) {
+      // Fallback to ethers.js if no Hedera account ID available
+      console.warn(`No Hedera Account ID for user ${uid}, falling back to ethers.js minting`);
+      
+      const mintResult = await mintGreenPoints(user.evmAddress, points);
+      if (!mintResult.success) {
+        console.warn('Error minting Green Points with ethers.js:', mintResult.error);
+        return {
+          success: false,
+          error: `Failed to mint tokens: ${mintResult.error}`,
+        };
+      }
+      
+      // Record deposit on Green Africa contract
+      const depositResult = await recordDepositOnBlockchain(
+        user.greenId, // recyclerId
+        '0x52564d2d494649544e4553532d4f52434849442d303031000000000000000000', // rvmId (provided constant)
+        points, // petCount (same as points)
+        points, // pointsAwarded
+        '', // s3URI (empty string as requested)
+        finalSessionId // sessionId
+      );
+
+      if (!depositResult.success) {
+        console.warn('Token minted but deposit recording failed:', depositResult.error);
+        // Don't fail the entire operation since tokens were minted successfully
+      }
+
+      return {
+        success: true,
+        message: `Successfully minted ${points} Green Points (via ethers.js)`,
+        transactionHash: mintResult.transactionHash,
+      };
+    }
+
+    // Use Hedera SDK for minting (preferred method)
+    console.log(`Minting ${points} Green Points for user ${userAccountId} using Hedera SDK`);
+    const hederaMintResult = await mintGreenPointsHedera(userAccountId, points);
+    if (!hederaMintResult.success) {
+      console.warn('Error minting Green Points with Hedera SDK:', hederaMintResult.error);
       return {
         success: false,
-        error: `Failed to mint tokens: ${mintResult.error}`,
+        error: `Failed to mint tokens with Hedera SDK: ${hederaMintResult.error}`,
       };
     }
 
@@ -74,8 +113,8 @@ export async function mintPointsForUser(
 
     return {
       success: true,
-      message: `Successfully minted ${points} Green Points`,
-      transactionHash: mintResult.transactionHash,
+      message: `Successfully minted ${points} Green Points (via Hedera SDK)`,
+      transactionHash: hederaMintResult.transactionId,
     };
   } catch (error) {
     console.error('Error minting points for user:', error?.toString());
@@ -137,13 +176,34 @@ export async function burnPointsForUser(
       };
     }
 
-    // Burn Green Points tokens
-    const burnResult = await burnGreenPoints(user.evmAddress, points);
-    if (!burnResult.success) {
-      return {
-        success: false,
-        error: `Failed to burn tokens: ${burnResult.error}`,
-      };
+    // Get user's Hedera Account ID for token operations
+    const userAccountId = await getUserAccountId(uid);
+    let burnTransactionHash: string | undefined;
+
+    if (!userAccountId) {
+      // Fallback to ethers.js if no Hedera account ID available
+      console.warn(`No Hedera Account ID for user ${uid}, falling back to ethers.js burning`);
+      
+      const burnResult = await burnGreenPoints(user.evmAddress, points);
+      if (!burnResult.success) {
+        return {
+          success: false,
+          error: `Failed to burn tokens with ethers.js: ${burnResult.error}`,
+        };
+      }
+      burnTransactionHash = burnResult.transactionHash;
+    } else {
+      // Use Hedera SDK for burning (preferred method)
+      console.log(`Burning ${points} Green Points for user ${userAccountId} using Hedera SDK`);
+      const hederaBurnResult = await burnGreenPointsHedera(userAccountId, points);
+      if (!hederaBurnResult.success) {
+        console.warn('Error burning Green Points with Hedera SDK:', hederaBurnResult.error);
+        return {
+          success: false,
+          error: `Failed to burn tokens with Hedera SDK: ${hederaBurnResult.error}`,
+        };
+      }
+      burnTransactionHash = hederaBurnResult.transactionId;
     }
 
     // Call contract redeem points
@@ -160,10 +220,11 @@ export async function burnPointsForUser(
       // Don't fail the entire operation since tokens were burned successfully
     }
 
+    const method = userAccountId ? 'Hedera SDK' : 'ethers.js';
     return {
       success: true,
-      message: `Successfully burned ${points} Green Points for redemption`,
-      transactionHash: burnResult.transactionHash,
+      message: `Successfully burned ${points} Green Points for redemption (via ${method})`,
+      transactionHash: burnTransactionHash,
     };
   } catch (error) {
     console.error('Error burning points for user:', error);

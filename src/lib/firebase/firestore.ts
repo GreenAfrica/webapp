@@ -112,7 +112,7 @@ export const getUser = async (uid: string): Promise<GreenAfricaUser | null> => {
     // If user has an EVM address, get points from blockchain instead of Firebase
     if (userData.evmAddress) {
       try {
-        const { getTokenBalance } = await import('@/lib/hedera/token-client');
+        const { getTokenBalance } = await import('@/lib/ethereum/token-client');
         const balanceResult = await getTokenBalance(userData.evmAddress);
         
         if (balanceResult.success && balanceResult.balance) {

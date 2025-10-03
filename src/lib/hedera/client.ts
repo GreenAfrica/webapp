@@ -12,12 +12,13 @@ import {
 } from '@hashgraph/sdk';
 
 // Server-only environment variables
-function getServerEnv() {
+export async function getServerEnv() {
   return {
     HEDERA_NETWORK: process.env.HEDERA_NETWORK || 'testnet',
     HEDERA_OPERATOR_ID: process.env.HEDERA_OPERATOR_ID,
     HEDERA_OPERATOR_KEY: process.env.HEDERA_OPERATOR_KEY,
     GREEN_AFRICA_CONTRACT_ID: process.env.GREEN_AFRICA_CONTRACT_ID,
+    GREENPOINTS_TOKEN_ID: process.env.GREENPOINTS_TOKEN_ID,
   };
 }
 
@@ -31,8 +32,8 @@ interface BlockchainResult {
 /**
  * Create Hedera client for blockchain operations
  */
-function createHederaClient(): Client {
-  const env = getServerEnv();
+export async function createHederaClient(): Promise<Client> {
+  const env = await getServerEnv();
   
   if (!env.HEDERA_OPERATOR_ID || !env.HEDERA_OPERATOR_KEY) {
     throw new Error('Hedera operator credentials not configured');
@@ -65,7 +66,7 @@ export async function registerUserOnBlockchain(
   referredByCode?: string
 ): Promise<BlockchainResult> {
   try {
-    const env = getServerEnv();
+    const env = await getServerEnv();
     
     if (!env.GREEN_AFRICA_CONTRACT_ID) {
       console.warn('GREEN_AFRICA_CONTRACT_ID not configured - skipping blockchain registration');
@@ -75,7 +76,7 @@ export async function registerUserOnBlockchain(
       };
     }
 
-    const client = createHederaClient();
+    const client = await createHederaClient();
     
     try {
       // First check if user already exists
@@ -135,14 +136,14 @@ export async function registerUserOnBlockchain(
  */
 export async function checkUserExists(greenId: string): Promise<boolean> {
   try {
-    const env = getServerEnv();
+    const env = await getServerEnv();
     
     if (!env.GREEN_AFRICA_CONTRACT_ID) {
       console.warn('GREEN_AFRICA_CONTRACT_ID not configured - returning false for user existence check');
       return false;
     }
 
-    const client = createHederaClient();
+    const client = await createHederaClient();
     
     try {
       const contractId = ContractId.fromString(env.GREEN_AFRICA_CONTRACT_ID);
@@ -184,7 +185,7 @@ export async function registerRVMOnBlockchain(
   metaURI: string
 ): Promise<BlockchainResult> {
   try {
-    const env = getServerEnv();
+    const env = await getServerEnv();
     
     if (!env.GREEN_AFRICA_CONTRACT_ID) {
       console.warn('GREEN_AFRICA_CONTRACT_ID not configured - skipping RVM blockchain registration');
@@ -193,7 +194,7 @@ export async function registerRVMOnBlockchain(
       };
     }
 
-    const client = createHederaClient();
+    const client = await createHederaClient();
     
     try {
       const contractId = ContractId.fromString(env.GREEN_AFRICA_CONTRACT_ID);
@@ -244,7 +245,7 @@ export async function registerRVMOnBlockchain(
  * Utility function to validate contract configuration
  */
 export async function isBlockchainConfigured(): Promise<boolean> {
-  const env = getServerEnv();
+  const env = await getServerEnv();
   return !!(
     env.HEDERA_OPERATOR_ID &&
     env.HEDERA_OPERATOR_KEY &&

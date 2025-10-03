@@ -103,6 +103,7 @@ export async function generateHederaAccountAction(): Promise<HederaAccountResult
     console.log('Generating Hedera account on server...');
     
     const client = createHederaClient();
+    const operatorKey = PrivateKey.fromStringECDSA(getServerEnv().HEDERA_OPERATOR_KEY!);
     
     try {
       // Generate a new private key for the account
@@ -110,10 +111,12 @@ export async function generateHederaAccountAction(): Promise<HederaAccountResult
       const newAccountPublicKey = newAccountPrivateKey.publicKey;
 
       // Create the account creation transaction
-      const createAccountTx = new AccountCreateTransaction()
-        .setKey(newAccountPublicKey)
-        .setInitialBalance(new Hbar(0)) // No initial funding
-        .setMaxTransactionFee(new Hbar(2)); // Max fee for account creation
+      const createAccountTx = await new AccountCreateTransaction()
+        .setKeyWithoutAlias(newAccountPublicKey)
+        .setInitialBalance(new Hbar(0.1)) // give it a little HBAR to start
+        .setMaxAutomaticTokenAssociations(-1) // <<< unlimited token associations
+        .freezeWith(client)
+        .sign(operatorKey);
 
       // Execute the transaction
       const txResponse = await createAccountTx.execute(client);
@@ -124,9 +127,9 @@ export async function generateHederaAccountAction(): Promise<HederaAccountResult
       }
 
       const accountId = receipt.accountId.toString();
-      const evmAddress = receipt.accountId.toSolidityAddress();
+      const evmAddress = `0x${receipt.accountId.toEvmAddress()}`;
 
-      console.log(`New Hedera account created: ${accountId}`);
+      console.log(`New Hedera account created: ${accountId}, EVM: ${evmAddress}`);
 
       // Encrypt the private key for storage
       const encryptedPrivateKey = encryptPrivateKey(newAccountPrivateKey.toStringRaw());
@@ -135,7 +138,7 @@ export async function generateHederaAccountAction(): Promise<HederaAccountResult
         success: true,
         data: {
           accountId,
-          evmAddress: `0x${evmAddress}`,
+          evmAddress,
           encryptedPrivateKey, // Return encrypted private key for database storage
         }
       };
