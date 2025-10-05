@@ -5,27 +5,37 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { extractReferralCode, storeReferralCode, isValidReferralCodeFormat } from '@/lib/utils/referral';
 import Image from 'next/image';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+// Dynamically import the map to avoid SSR issues
+const InteractiveMap = dynamic(() => import('@/components/shared/InteractiveMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full bg-[#e8f3e9] rounded-2xl flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2e7d33] mx-auto mb-4"></div>
+        <p className="text-[#2e7d33]">Loading map...</p>
+      </div>
+    </div>
+  ),
+});
 
 // Image imports based on Figma extraction
 const imgPersonHoldingRecyclingBinFullPlasticBottles1 = "/033bc39ae008769ea0344bb76b69a8b474dd3383.png";
 const imgCloseUpPersonHandHoldingGlassBottle1 = "/rvm-box.png";
-const imgScreenshot20250901At1617421 = "/722de87e30bf7b63ec913e46f333e1f6443613b9.png";
 const imgGroup = "/7e3f647a112eb76039ddd32806f5db04c6717f3c.svg";
 const imgGroup1 = "/1d729100fabe9daa7ab6847ee7c1e76487aa5864.svg";
 const imgRecycle = "/d0291353124f60d1f353c15dac39e8f363977222.svg";
 const imgDeviceMobile = "/2f1ab8ebe22ac9af46990166b27d574b8d4d17bb.svg";
-const imgRecycle1 = "/d81dc3776f492fc2c2d92c415f047201df643510.svg";
 const imgBeerBottle = "/970a1b0eb73528d093feda687b5f057422b0dac6.svg";
 const imgSealCheck = "/140da9d13c33d09313e144de560f47424d1e10fb.svg";
 const imgGift = "/fe5fd71d5bffde300b948e97b04ba095af8da7f2.svg";
-const imgFlowerLotus = "/12fdf0e2f4e0d616659c4e57aac335fab4bd3e0d.svg";
 const imgBeerBottle1 = "/91c89364533bf95c3f5e2c9363f4e24766d521f7.svg";
 const imgRecycle2 = "/ca4db25f15667316576a46b13cf4164080b1e7db.svg";
 const imgWind = "/105707e39679039c99f4f576403ea55e474bd675.svg";
 const imgDatabase = "/1d7f874398c93ef553276025636ef71a8010f8f9.svg";
 const imgDeviceTabletSpeaker = "/632d9b84963d25e6016a00fedac7ff76a3983975.svg";
 const imgMapPinArea = "/46e3c67c2e31719f61d645342ec378562d9b8f3c.svg";
-const imgShippingContainer = "/fc04426d8c3dbe40684d49abd0bc332ceddb05e2.svg";
 const imgGroup2 = "/985d925fd2f3760e185da35d687afbd9602fb471.svg";
 const imgGroup3 = "/a1aa7779199dd56e5453d6b77e402225e4b6db6d.svg";
 
@@ -140,7 +150,7 @@ function HomeContent() {
       </div>
 
       {/* How it works Section */}
-      <div className="w-full py-12 md:py-20 px-4">
+      <div className="w-full max-w-6xl mx-auto py-12 md:py-20 px-4">
         <h2 className="font-bold text-[#1e1e1e] text-2xl md:text-3xl lg:text-4xl text-center mb-8 md:mb-16">
           How it works
         </h2>
@@ -156,48 +166,38 @@ function HomeContent() {
               />
             </div>
           </div>
-          <div className="lg:flex lg:gap-8 xl:gap-12 lg:items-start">
+          <div className="lg:flex lg:gap-8 xl:gap-12 lg:items-center">
             <div className="hidden lg:block bg-[#e8f3e9] rounded-2xl overflow-hidden lg:w-1/2 xl:w-2/5 aspect-[4/5]">
               <Image 
                 alt="Close up person hand holding glass bottle" 
                 className="w-full h-full object-cover" 
                 src={imgCloseUpPersonHandHoldingGlassBottle1} 
                 width={599} 
-                height={695} 
+                height={675} 
               />
             </div>
             <div className="lg:w-1/2 xl:w-3/5 flex flex-col gap-3 md:gap-4">
             {[
               {
                 icon: imgDeviceMobile,
-                title: "Onboard",
-                description: "Download, verify phone/email, choose a username and the app creates your Green ID."
-              },
-              {
-                icon: imgRecycle1,
-                title: "Recycle",
-                description: "At a participating location, enter or scan your Green ID on the machine's tablet to start a session."
-              },
-              {
-                icon: imgBeerBottle,
-                title: "Drop bottles",
-                description: "The camera records 30‑second segments while you recycle; the app can notify you live."
+                title: "Sign up instantly",
+                description: "Visit greenafrica.earth and create your account in seconds"
               },
               {
                 icon: imgSealCheck,
-                title: "Verification",
-                description: "AI confirms bottles are PEP and counts them."
+                title: "Smart AI verification",
+                description: "Drop bottles into our smart bin. Computer vision instantly identifies and verifies each bottle"
+              },
+              {
+                icon: imgBeerBottle,
+                title: "Get rewarded automatically",
+                description: "Scan the QR code to claim your points - no waiting, no hassle"
               },
               {
                 icon: imgGift,
-                title: "Rewards",
-                description: "Green Points land in your wallet. Convert to airtime or data in a tap."
+                title: "Redeem instantly",
+                description: "Convert points to airtime/data directly on the web app"
               },
-              {
-                icon: imgFlowerLotus,
-                title: "Grow your impact",
-                description: "Track bottles, CO₂ saved, badges, and referrals that earn bonus points."
-              }
             ].map((step, index) => (
               <div key={index} className="bg-white rounded-xl w-full border border-[#e7f6e8] shadow-sm">
                 <div className="flex gap-4 md:gap-6 items-start p-4 md:p-6">
@@ -281,31 +281,8 @@ function HomeContent() {
             Request a device
           </a>
         </div>
-        <div className="bg-[#e8f3e9] rounded-2xl max-w-6xl mx-auto relative overflow-hidden aspect-[16/9] md:aspect-[2/1]">
-          <Image 
-            alt="Map showing active locations" 
-            className="w-full h-full object-cover" 
-            src={imgScreenshot20250901At1617421} 
-            width={1210} 
-            height={504} 
-          />
-          {/* Device markers */}
-          {[
-            { left: '205px', top: '263px' },
-            { left: '885px', top: '48px' },
-            { left: '817px', top: '305px' },
-            { left: '681px', top: '423px' }
-          ].map((position, index) => (
-            <div 
-              key={index} 
-              className="absolute transform -translate-x-1/2 -translate-y-1/2"
-              style={{ left: position.left, top: position.top }}
-            >
-              <div className="transform rotate-[92.651deg]">
-                <Image alt="Device location" className="w-[40px] h-[40px]" src={imgShippingContainer} width={40} height={40} />
-              </div>
-            </div>
-          ))}
+        <div className="max-w-6xl mx-auto relative overflow-hidden aspect-[16/9] md:aspect-[2/1]">
+          <InteractiveMap />
         </div>
       </div>
 
