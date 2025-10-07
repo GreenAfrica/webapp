@@ -19,15 +19,16 @@ import {
 } from 'firebase/firestore';
 import { db } from './config';
 import { generateHederaAccountAction } from '@/actions/hedera-account';
-import type { GreenAfricaUser, Transaction, Referral, RedemptionRequest } from '@/types';
+import type { GreenAfricaUser, Transaction, Referral, RedemptionRequest, DeviceRequest } from '@/types';
 
-export type { GreenAfricaUser, Transaction, Referral, RedemptionRequest };
+export type { GreenAfricaUser, Transaction, Referral, RedemptionRequest, DeviceRequest };
 
 // Collection references
 export const usersRef = collection(db, 'users') as CollectionReference<GreenAfricaUser>;
 export const transactionsRef = collection(db, 'transactions') as CollectionReference<Transaction>;
 export const referralsRef = collection(db, 'referrals') as CollectionReference<Referral>;
 export const redemptionsRef = collection(db, 'redemptions') as CollectionReference<RedemptionRequest>;
+export const deviceRequestsRef = collection(db, 'deviceRequests') as CollectionReference<DeviceRequest>;
 
 // Generate unique Green ID (legacy function - keeping for fallback)
 const generateGreenId = (): string => {
@@ -404,6 +405,39 @@ export const addPointsToUser = async (uid: string, points: number, description: 
 
 export const deleteUser = async (uid: string): Promise<void> => {
   await deleteDoc(doc(usersRef, uid));
+};
+
+// Device Request Functions
+export const createDeviceRequest = async (
+  deviceRequest: Omit<DeviceRequest, 'id' | 'createdAt' | 'updatedAt' | 'status'>
+): Promise<string> => {
+  const docRef = await addDoc(deviceRequestsRef, {
+    ...deviceRequest,
+    status: 'pending',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  
+  return docRef.id;
+};
+
+export const getDeviceRequests = async (): Promise<DeviceRequest[]> => {
+  const q = query(deviceRequestsRef, orderBy('createdAt', 'desc'));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+};
+
+export const updateDeviceRequestStatus = async (
+  requestId: string, 
+  status: DeviceRequest['status']
+): Promise<void> => {
+  await updateDoc(doc(deviceRequestsRef, requestId), {
+    status,
+    updatedAt: serverTimestamp(),
+  });
 };
 
 // Migration functions moved to server actions for security

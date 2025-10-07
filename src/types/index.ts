@@ -89,3 +89,14 @@ export interface PhoneVerificationState {
   confirmationResult: ConfirmationResult;
   phoneNumber: string;
 }
+
+export interface DeviceRequest {
+  id?: string;
+  name: string;
+  email: string;
+  phone: string;
+  location: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}

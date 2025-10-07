@@ -6,6 +6,7 @@ import { extractReferralCode, storeReferralCode, isValidReferralCodeFormat } fro
 import Image from 'next/image';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import DeviceRequestModal from '@/components/shared/DeviceRequestModal';
 
 // Dynamically import the map to avoid SSR issues
 const InteractiveMap = dynamic(() => import('@/components/shared/InteractiveMap'), {
@@ -81,11 +82,16 @@ function ReferralHandler({
 function HomeContent() {
   const router = useRouter();
   const [referralMessage, setReferralMessage] = useState<string | null>(null);
+  const [isDeviceRequestModalOpen, setIsDeviceRequestModalOpen] = useState(false);
 
   // Handle referral message callback
   const handleReferralMessage = (message: string | null) => {
     setReferralMessage(message);
   };
+
+  // Handle device request modal
+  const openDeviceRequestModal = () => setIsDeviceRequestModalOpen(true);
+  const closeDeviceRequestModal = () => setIsDeviceRequestModalOpen(false);
 
   return (
     <div className="bg-white flex flex-col items-start relative min-h-screen w-full">
@@ -277,9 +283,12 @@ function HomeContent() {
           <h2 className="font-bold text-[#1e1e1e] text-2xl md:text-3xl lg:text-4xl mb-4 md:mb-6 leading-tight">
             Active locations of our Vending Machine
           </h2>
-          <a href="#" className="inline-block font-semibold text-[#2e7d33] text-base md:text-lg underline hover:text-[#1b5e20] transition-colors duration-200 min-h-[44px] py-2">
+          <button 
+            onClick={openDeviceRequestModal}
+            className="inline-block font-semibold text-[#2e7d33] text-base md:text-lg underline hover:text-[#1b5e20] transition-colors duration-200 min-h-[44px] py-2"
+          >
             Request a device
-          </a>
+          </button>
         </div>
         <div className="max-w-6xl mx-auto relative overflow-hidden aspect-[16/9] md:aspect-[2/1]">
           <InteractiveMap />
@@ -302,6 +311,12 @@ function HomeContent() {
           </p>
         </div>
       </div>
+
+      {/* Device Request Modal */}
+      <DeviceRequestModal
+        isOpen={isDeviceRequestModalOpen}
+        onClose={closeDeviceRequestModal}
+      />
 
       {/* ReferralHandler wrapped in Suspense */}
       <Suspense fallback={null}>

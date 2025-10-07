@@ -59,10 +59,76 @@ export default function InteractiveMap({ className = "" }: InteractiveMapProps) 
         />
         <Marker position={MARKER_POSITION} icon={customIcon}>
           <Popup>
-            <div className="text-center">
-              <strong className="text-[#2e7d33]">GreenAfrica Smart Bin</strong>
-              <br />
-              <span className="text-sm text-gray-600">Active recycling location</span>
+            <div className="">
+              <div className="content-stretch flex flex-col gap-[13px] items-start relative shrink-0 w-full">
+                {/* Location name */}
+                <div className="content-stretch flex gap-[14px] h-[18px] items-center relative shrink-0 w-full">
+                  <div className="basis-0 content-stretch flex gap-[5px] grow items-center min-h-px min-w-px relative shrink-0">
+                    <div className="relative shrink-0 size-[18px]">
+                      <img alt="" className="block max-w-none size-full" src="/49e5ae5dd47efa0013ef5ca724093a5165601bbd.svg" />
+                    </div>
+                    <p className="font-normal leading-none relative shrink-0 text-[#696565] text-[13px] text-center text-nowrap whitespace-pre">
+                      Location name
+                    </p>
+                  </div>
+                  <p className="font-medium leading-none relative shrink-0 text-[#1e1e1e] text-[16px] text-nowrap whitespace-pre">
+                    iFitness Orchid
+                  </p>
+                </div>
+
+                {/* Hedera contract link */}
+                <div className="content-stretch flex gap-px h-[18px] items-center relative shrink-0 w-full">
+                  <div className="basis-0 content-stretch flex gap-[5px] grow items-center min-h-px min-w-px relative shrink-0">
+                    <div className="relative shrink-0 size-[18px]">
+                      <img alt="" className="block max-w-none size-full" src="/9eec953f9cf5fbef4f7cf8bce917822caa2abb2a.svg" />
+                    </div>
+                    <p className="font-normal leading-none relative shrink-0 text-[#696565] text-[13px] text-center text-nowrap whitespace-pre">
+                      Hedera contract
+                    </p>
+                  </div>
+                  <a 
+                    href="https://hashscan.io/testnet/account/0.0.6779400" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="[text-underline-position:from-font] decoration-solid font-medium leading-none relative shrink-0 text-[#1e1e1e] text-[16px] text-nowrap underline whitespace-pre flex items-center gap-1"
+                  >
+                    0.0.6779400
+                    <div className="relative shrink-0 size-[16px]">
+                      <img alt="" className="block max-w-none size-full" src="/03fabe1a19d67b95815577a39117aa7ca5648eb2.svg" />
+                    </div>
+                  </a>
+                </div>
+
+                {/* PEPs collected */}
+                <div className="content-stretch flex gap-px h-[18px] items-center relative shrink-0 w-full">
+                  <div className="basis-0 content-stretch flex gap-[5px] grow items-center min-h-px min-w-px relative shrink-0">
+                    <div className="relative shrink-0 size-[18px]">
+                      <img alt="" className="block max-w-none size-full" src="/e0e3358d034927fa2be75ee69e47e1c714d643d8.svg" />
+                    </div>
+                    <p className="font-normal leading-none relative shrink-0 text-[#696565] text-[13px] text-center text-nowrap whitespace-pre">
+                      PEPs collected
+                    </p>
+                  </div>
+                  <p className="font-medium leading-none relative shrink-0 text-[#1e1e1e] text-[16px] text-nowrap whitespace-pre">
+                    6,000
+                  </p>
+                </div>
+
+                {/* Active since */}
+                <div className="content-stretch flex gap-px h-[18px] items-center relative shrink-0 w-full">
+                  <div className="basis-0 content-stretch flex gap-[5px] grow items-center min-h-px min-w-px relative shrink-0">
+                    <div className="relative shrink-0 size-[18px]">
+                      <img alt="" className="block max-w-none size-full" src="/6d2b3447e269c556c90768d3f04b9c770b366447.svg" />
+                    </div>
+                    <p className="font-normal leading-none relative shrink-0 text-[#696565] text-[13px] text-center text-nowrap whitespace-pre">
+                      Active since:
+                    </p>
+                  </div>
+                  <p className="font-medium leading-none relative shrink-0 text-[#1e1e1e] text-[16px] text-nowrap whitespace-pre">
+                    Dec 15, 2024
+                  </p>
+                </div>
+              </div>
             </div>
           </Popup>
         </Marker>
