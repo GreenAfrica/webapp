@@ -1,8 +1,8 @@
 'use server';
 
-import { mintGreenPoints, burnGreenPoints, getTokenBalance } from '@/lib/ethereum/token-client';
+import { mintGreenPoints, burnGreenPoints, getTokenBalance } from '@/lib/ethers/token-client';
 import { mintGreenPointsHedera, burnGreenPointsHedera, getUserAccountId } from '@/lib/hedera/token-service';
-import { recordDepositOnBlockchain, redeemPointsOnBlockchain, getUserFromBlockchain } from '@/lib/ethereum/client';
+import { recordDepositOnBlockchain, redeemPointsOnBlockchain, getUserFromBlockchain } from '@/lib/ethers/client';
 import { getUserAdmin } from '@/lib/firebase/admin-firestore';
 
 export interface GreenPointsResult {

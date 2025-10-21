@@ -1,6 +1,6 @@
 'use server';
 
-import { registerUserOnBlockchain, checkUserExists, registerRVMOnBlockchain } from '@/lib/ethereum/client';
+import { registerUserOnBlockchain, checkUserExists, registerRVMOnBlockchain } from '@/lib/ethers/client';
 import { getUserByReferralCodeAdmin } from '@/lib/firebase/admin-firestore';
 
 export interface BlockchainRegistrationResult {
