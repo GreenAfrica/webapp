@@ -1,26 +1,14 @@
 'use server';
 
 import {
-  Client,
   PrivateKey,
   AccountCreateTransaction,
-  AccountId,
   Hbar,
+  TokenAssociateTransaction,
+  TokenId,
 } from '@hashgraph/sdk';
-import * as crypto from 'crypto';
-
-// Server-only environment variables (loaded at runtime)
-function getServerEnv() {
-  return {
-    HEDERA_NETWORK: process.env.HEDERA_NETWORK || 'testnet',
-    HEDERA_OPERATOR_ID: process.env.HEDERA_OPERATOR_ID,
-    HEDERA_OPERATOR_KEY: process.env.HEDERA_OPERATOR_KEY,
-    ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
-  };
-}
-
-const ENCRYPTION_ALGORITHM = 'aes-256-ctr';
-const IV_LENGTH = 16;
+import { encryptPrivateKey } from '@/lib/hedera/key-management';
+import { createHederaClient, getServerEnv } from '@/lib/hedera/client';
 
 interface HederaAccountResult {
   success: boolean;
@@ -33,67 +21,6 @@ interface HederaAccountResult {
 }
 
 /**
- * Create Hedera client - SERVER SIDE ONLY
- */
-function createHederaClient(): Client {
-  const env = getServerEnv();
-  
-  if (!env.HEDERA_OPERATOR_ID || !env.HEDERA_OPERATOR_KEY) {
-    throw new Error('Hedera operator credentials not configured on server');
-  }
-
-  let client: Client;
-  
-  if (env.HEDERA_NETWORK === 'mainnet') {
-    client = Client.forMainnet();
-  } else {
-    client = Client.forTestnet();
-  }
-
-  try {
-    const operatorId = AccountId.fromString(env.HEDERA_OPERATOR_ID);
-    const operatorKey = PrivateKey.fromStringECDSA(env.HEDERA_OPERATOR_KEY);
-    client.setOperator(operatorId, operatorKey);
-    return client;
-  } catch (error) {
-    throw new Error(`Failed to configure Hedera client: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
-
-/**
- * Get encryption key - SERVER SIDE ONLY
- */
-function getEncryptionKey(): Buffer {
-  const env = getServerEnv();
-  
-  if (!env.ENCRYPTION_KEY) {
-    throw new Error('ENCRYPTION_KEY not configured on server');
-  }
-  
-  return crypto.scryptSync(env.ENCRYPTION_KEY, 'salt', 32);
-}
-
-/**
- * Encrypt private key - SERVER SIDE ONLY
- */
-function encryptPrivateKey(privateKey: string): string {
-  try {
-    const key = getEncryptionKey();
-    const iv = crypto.randomBytes(IV_LENGTH);
-    
-    const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
-    
-    let encrypted = cipher.update(privateKey, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-    
-    const combined = Buffer.concat([iv, Buffer.from(encrypted, 'hex')]);
-    return combined.toString('base64');
-  } catch (error) {
-    throw new Error('Failed to encrypt private key');
-  }
-}
-
-/**
  * Server action to generate a new Hedera account
  * Returns only public information (accountId, evmAddress)
  * Private key is encrypted and stored server-side
@@ -101,10 +28,11 @@ function encryptPrivateKey(privateKey: string): string {
 export async function generateHederaAccountAction(): Promise<HederaAccountResult> {
   try {
     console.log('Generating Hedera account on server...');
-    
-    const client = createHederaClient();
-    const operatorKey = PrivateKey.fromStringECDSA(getServerEnv().HEDERA_OPERATOR_KEY!);
-    
+
+    const env = await getServerEnv();
+    const client = await createHederaClient();
+    const operatorKey = PrivateKey.fromStringECDSA(env.HEDERA_OPERATOR_KEY!);
+
     try {
       // Generate a new private key for the account
       const newAccountPrivateKey = PrivateKey.generateECDSA();
@@ -122,14 +50,44 @@ export async function generateHederaAccountAction(): Promise<HederaAccountResult
       const txResponse = await createAccountTx.execute(client);
       const receipt = await txResponse.getReceipt(client);
       
-      if (!receipt.accountId) {
+      const newAccountId = receipt.accountId;
+
+      if (!newAccountId) {
         throw new Error('Failed to create Hedera account - no account ID returned');
       }
 
-      const accountId = receipt.accountId.toString();
-      const evmAddress = `0x${receipt.accountId.toEvmAddress()}`;
+      const accountId = newAccountId.toString();
+      const evmAddress = `0x${newAccountId.toEvmAddress()}`;
 
       console.log(`New Hedera account created: ${accountId}, EVM: ${evmAddress}`);
+
+      // Associate the Green Points token with the new account if configured
+      const tokenIdValue = env.GREENPOINTS_TOKEN_ID;
+
+      if (tokenIdValue) {
+        console.log(`Associating token ${tokenIdValue} with account ${accountId}`);
+
+        const associateTx = await new TokenAssociateTransaction()
+          .setAccountId(newAccountId)
+          .setTokenIds([TokenId.fromString(tokenIdValue)])
+          .freezeWith(client)
+          .sign(newAccountPrivateKey);
+
+        const associateResponse = await associateTx.execute(client);
+        const associateReceipt = await associateResponse.getReceipt(client);
+
+        if (associateReceipt.status.toString() !== 'SUCCESS') {
+          throw new Error(
+            `Token association failed with status: ${associateReceipt.status.toString()}`
+          );
+        }
+
+        console.log(
+          `Associated token ${tokenIdValue} with account ${accountId}. TX: ${associateResponse.transactionId.toString()}`
+        );
+      } else {
+        console.warn('GREENPOINTS_TOKEN_ID not configured - skipping token association');
+      }
 
       // Encrypt the private key for storage
       const encryptedPrivateKey = encryptPrivateKey(newAccountPrivateKey.toStringRaw());
@@ -139,7 +97,7 @@ export async function generateHederaAccountAction(): Promise<HederaAccountResult
         data: {
           accountId,
           evmAddress,
-          encryptedPrivateKey, // Return encrypted private key for database storage
+          encryptedPrivateKey,
         }
       };
     } finally {

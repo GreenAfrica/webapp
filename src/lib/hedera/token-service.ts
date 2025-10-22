@@ -7,13 +7,91 @@ import {
   TransferTransaction,
   TokenWipeTransaction,
   TokenId,
+  TokenAssociateTransaction,
+  Status,
+  Client,
+  StatusError,
 } from '@hashgraph/sdk';
 import { createHederaClient, getServerEnv } from './client';
+import { getUserByGreenIdAdmin } from '@/lib/firebase/admin-firestore';
+import { decryptPrivateKey } from '@/lib/hedera/key-management';
 
 interface HederaTokenResult {
   success: boolean;
   transactionId?: string;
   error?: string;
+}
+
+async function associateTokenForAccount(
+  client: Client,
+  account: AccountId,
+  tokenId: TokenId
+): Promise<void> {
+  const accountIdString = account.toString();
+  const user = await getUserByGreenIdAdmin(accountIdString);
+
+  if (!user) {
+    throw new Error(`Unable to auto-associate token: user record not found for account ${accountIdString}`);
+  }
+
+  if (!user.encryptedPrivateKey) {
+    throw new Error(
+      `Unable to auto-associate token: encrypted private key missing for account ${accountIdString}`
+    );
+  }
+
+  const privateKeyRaw = decryptPrivateKey(user.encryptedPrivateKey);
+  const accountKey = PrivateKey.fromStringECDSA(privateKeyRaw);
+
+  console.log(`Associating token ${tokenId.toString()} with account ${accountIdString}`);
+
+  const associateTx = await new TokenAssociateTransaction()
+    .setAccountId(account)
+    .setTokenIds([tokenId])
+    .freezeWith(client)
+    .sign(accountKey);
+
+  const associateResponse = await associateTx.execute(client);
+  const associateReceipt = await associateResponse.getReceipt(client);
+
+  if (associateReceipt.status !== Status.Success) {
+    throw new Error(
+      `Token association failed with status: ${associateReceipt.status.toString()}`
+    );
+  }
+
+  console.log(
+    `Associated token ${tokenId.toString()} with account ${accountIdString}. TX: ${associateResponse.transactionId.toString()}`
+  );
+}
+
+function isTokenNotAssociatedError(error: unknown): boolean {
+  if (error instanceof StatusError) {
+    return error.status === Status.TokenNotAssociatedToAccount;
+  }
+
+  if (error instanceof Error && 'status' in error) {
+    const statusValue = (error as { status?: unknown }).status;
+
+    if (statusValue === Status.TokenNotAssociatedToAccount) {
+      return true;
+    }
+
+    if (typeof statusValue === 'string') {
+      return statusValue === Status.TokenNotAssociatedToAccount.toString();
+    }
+
+    if (typeof statusValue === 'object' && statusValue !== null) {
+      try {
+        const statusString = (statusValue as { toString(): string }).toString();
+        return statusString === Status.TokenNotAssociatedToAccount.toString();
+      } catch {
+        return false;
+      }
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -70,22 +148,46 @@ export async function mintGreenPointsHedera(
     
     console.log(`Transferring ${amount} GREEN tokens to user ${userAccountId}`);
 
-    const transferTx = await new TransferTransaction()
-      .addTokenTransfer(tokenId, operatorId, -Number(mintAmount))
-      .addTokenTransfer(tokenId, userAccount, Number(mintAmount))
-      .execute(client);
+    const performTransfer = async () => {
+      const response = await new TransferTransaction()
+        .addTokenTransfer(tokenId, operatorId, -Number(mintAmount))
+        .addTokenTransfer(tokenId, userAccount, Number(mintAmount))
+        .execute(client);
 
-    const transferReceipt = await transferTx.getReceipt(client);
+      const receipt = await response.getReceipt(client);
 
-    if (transferReceipt.status.toString() !== 'SUCCESS') {
+      return { response, receipt };
+    };
+
+    let transferResult;
+
+    try {
+      transferResult = await performTransfer();
+    } catch (error) {
+      if (isTokenNotAssociatedError(error)) {
+        console.warn(
+          `User account ${userAccountId} is not associated with token ${tokenId.toString()}. Attempting automatic association...`
+        );
+        await associateTokenForAccount(client, userAccount, tokenId);
+        transferResult = await performTransfer();
+      } else {
+        throw error;
+      }
+    }
+
+    const { response: transferResponse, receipt: transferReceipt } = transferResult;
+
+    if (transferReceipt.status !== Status.Success) {
       throw new Error(`Transfer transaction failed with status: ${transferReceipt.status.toString()}`);
     }
 
-    console.log(`Transferred ${amount} GREEN tokens to ${userAccountId}. TX: ${transferTx.transactionId.toString()}`);
+    console.log(
+      `Transferred ${amount} GREEN tokens to ${userAccountId}. TX: ${transferResponse.transactionId.toString()}`
+    );
 
     return {
       success: true,
-      transactionId: transferTx.transactionId.toString(),
+      transactionId: transferResponse.transactionId.toString(),
     };
 
   } catch (error) {
