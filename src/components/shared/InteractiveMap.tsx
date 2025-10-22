@@ -125,7 +125,7 @@ export default function InteractiveMap({ className = "" }: InteractiveMapProps) 
                     </p>
                   </div>
                   <p className="font-medium leading-none relative shrink-0 text-[#1e1e1e] text-[16px] text-nowrap whitespace-pre">
-                    Dec 15, 2024
+                    Sept 15, 2025
                   </p>
                 </div>
               </div>
